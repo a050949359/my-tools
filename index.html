@@ -2,103 +2,217 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>多功能轉換工具</title>
 <script src="qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
+:root {
+  --bg-a: #f0f4ff;
+  --bg-b: #f7faf7;
+  --card: #ffffff;
+  --line: #d8dee9;
+  --text: #10233d;
+  --muted: #5b6d84;
+  --primary: #0062d7;
+  --primary-2: #00a5b8;
+  --mono: "JetBrains Mono", monospace;
+}
+* { box-sizing: border-box; }
 body {
-  font-family: sans-serif;
-  background: #f5f5f5;
-  display: flex;
-  justify-content: center;
-  padding: 2rem;
+  margin: 0;
+  font-family: "Manrope", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1400px 500px at -10% -20%, #d9e7ff 0%, rgba(217,231,255,0) 50%),
+    radial-gradient(900px 500px at 110% -20%, #d8fff1 0%, rgba(216,255,241,0) 50%),
+    linear-gradient(160deg, var(--bg-a), var(--bg-b));
+  min-height: 100vh;
+  padding: 20px;
 }
 .container {
-  width: 800px;
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  max-width: 1080px;
+  margin: 0 auto;
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(19, 39, 82, 0.12);
+  padding: 20px;
 }
-h2, h3 {
-  text-align: center;
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
+.topbar p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.badge {
+  background: linear-gradient(110deg, #0058be, #00a3b6);
+  color: #fff;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
 }
 .tabs {
   display: flex;
-  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
 }
 .tab {
-  flex: 1;
-  padding: 0.6rem;
+  flex: 1 1 160px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #385070;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 10px 12px;
   cursor: pointer;
-  background: #e9ecef;
-  border: none;
-  font-size: 14px;
-  color: #495057;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  transition: .2s ease;
 }
-.tab:hover {
-  background: #dee2e6;
-  color: #212529;
-}
+.tab:hover { border-color: #8cb8ff; }
 .tab.active {
-  background: #007BFF;
   color: #fff;
+  border-color: transparent;
+  background: linear-gradient(110deg, #0063d8, #00a8bc);
 }
 .tool {
   display: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  animation: in .2s ease;
 }
-.tool.active {
+.tool.active { display: block; }
+@keyframes in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+h3 {
+  margin: 16px 0 8px;
+  font-size: 16px;
+}
+label {
   display: block;
+  margin: 8px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #314f74;
 }
-textarea, input {
+textarea, input, select {
   width: 100%;
-  padding: 0.5rem;
-  margin: 0.3rem 0;
-  box-sizing: border-box;
-  font-family: monospace;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  padding: 10px;
+  color: var(--text);
+  background: #fff;
+  font-family: var(--mono);
+}
+textarea:focus, input:focus, select:focus {
+  outline: 2px solid #97c0ff;
+  border-color: #97c0ff;
 }
 button {
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
   cursor: pointer;
-  background: #007BFF;
-  color: white;
-  border: none;
-  border-radius: 4px;
+  color: #fff;
+  background: linear-gradient(110deg, #0063d8, #00a8bc);
 }
+button:hover { filter: brightness(1.05); }
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.button-row button { margin-top: 10px; }
 pre {
-  background: #f0f0f0;
-  padding: 1rem;
-  border-radius: 4px;
+  margin: 0;
+  background: #f6f8fc;
+  border: 1px solid #e2e8f1;
+  border-radius: 10px;
+  padding: 12px;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
+  font-family: var(--mono);
 }
 .drop-zone {
-  border: 2px dashed #aaa;
-  padding: 2rem;
+  border: 2px dashed #97abc8;
+  border-radius: 14px;
+  padding: 26px;
   text-align: center;
-  color: #666;
+  color: var(--muted);
   cursor: pointer;
-  margin-bottom: 1rem;
+  margin-bottom: 10px;
+  background: linear-gradient(180deg, #f8fbff, #f2f7ff);
 }
 .drop-zone.dragover {
-  border-color: #007BFF;
-  background: #f0f8ff;
+  border-color: #0063d8;
+  background: linear-gradient(180deg, #eef5ff, #e9f6ff);
 }
 img.preview {
   max-width: 100%;
-  margin-top: 1rem;
+  margin-top: 10px;
   display: block;
-  border: 1px solid #ccc;
+  border: 1px solid #d4deeb;
+  border-radius: 12px;
+}
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 900px) {
+  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  body { padding: 10px; }
+  .container { padding: 14px; border-radius: 14px; }
+  h2 { font-size: 22px; }
+  .topbar { flex-direction: column; align-items: flex-start; }
+  .grid-4, .grid-2 { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
 <div class="container">
-  <h2>多功能轉換工具</h2>
+  <div class="topbar">
+    <div>
+      <h2>多功能轉換工具</h2>
+      <p>Base64、QR、SVG 與文字轉換，一頁完成</p>
+    </div>
+    <div class="badge">Utility Suite</div>
+  </div>
   
   <!-- Tabs -->
   <div class="tabs">
@@ -111,6 +225,7 @@ img.preview {
 
   <!-- Tool 1: Unicode/JSON → 中文 -->
   <div id="textTool" class="tool active">
+    <p class="muted">支援 \uXXXX、\u{XXXX} 以及 JSON 字串解析。</p>
     <textarea id="input" placeholder="貼入 JSON 或 \uXXXX、\u{XXXX}"></textarea>
     <button onclick="convert()">轉換</button>
     <h3>結果：</h3>
@@ -119,6 +234,7 @@ img.preview {
 
   <!-- Tool 2: 圖片 → Base64 -->
   <div id="imageTool" class="tool">
+    <p class="muted">拖曳或選取圖片後，立即轉為 Base64。</p>
     <div id="dropZone" class="drop-zone">
       拖曳圖片到這裡，或點擊選擇圖片
       <input type="file" id="fileInput" accept="image/*" hidden>
@@ -130,30 +246,31 @@ img.preview {
 
   <!-- Tool 3: Placeholder 生成器 -->
   <div id="placeholderTool" class="tool">
-    <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; flex-wrap: nowrap;">
-      <div style="flex: 2; min-width: 0;">
+    <p class="muted">快速產生展示用占位圖，可直接下載或複製資料 URL。</p>
+    <div class="grid-4">
+      <div>
         <label>寬度 (px):</label>
         <input type="number" id="phWidth" value="600">
       </div>
-      <div style="flex: 2; min-width: 0;">
+      <div>
         <label>高度 (px):</label>
         <input type="number" id="phHeight" value="200">
       </div>
-      <div style="flex: 1; min-width: 80px;">
+      <div>
         <label>背景色:</label>
-        <input type="color" id="phBg" value="#cccccc" style="height: 32px;">
+        <input type="color" id="phBg" value="#cccccc" style="height: 40px;">
       </div>
-      <div style="flex: 1; min-width: 80px;">
+      <div>
         <label>文字色:</label>
-        <input type="color" id="phColor" value="#000000" style="height: 32px;">
+        <input type="color" id="phColor" value="#000000" style="height: 40px;">
       </div>
     </div>
-    <div style="margin-bottom: 0.5rem;">
+    <div>
       <label>文字:</label>
       <input type="text" id="phText" value="600x200">
     </div>
-    <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; align-items: center;">
-      <div style="flex: 1;">
+    <div class="grid-2">
+      <div>
         <label>檔案類型:</label>
         <select id="phFormat">
           <option value="png">PNG</option>
@@ -161,24 +278,27 @@ img.preview {
           <option value="webp">WebP</option>
         </select>
       </div>
-      <div>
+      <div style="display:flex; align-items:end;">
         <button onclick="generatePlaceholder()">生成預覽</button>
       </div>
     </div>
     <img id="phPreview" class="preview">
-    <button onclick="copyPlaceholderURL()">複製 Base64</button>
-    <button onclick="downloadPlaceholder()">下載圖片</button>
+    <div class="button-row">
+      <button onclick="copyPlaceholderURL()">複製 Base64</button>
+      <button onclick="downloadPlaceholder()">下載圖片</button>
+    </div>
     <input type="text" id="phURL" readonly>
   </div>
 
   <!-- Tool 4: QR Code 生成器 -->
   <div id="qrTool" class="tool">
-    <div style="margin-bottom: 0.5rem;">
+    <p class="muted">可選尺寸與容錯級別，產生後可下載或複製 Base64。</p>
+    <div>
       <label>文字/網址:</label>
       <textarea id="qrInput" placeholder="輸入要產生 QR Code 的文字或網址" rows="3"></textarea>
     </div>
-    <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; align-items: center;">
-      <div style="flex: 1;">
+    <div class="grid-2">
+      <div>
         <label>尺寸:</label>
         <select id="qrSize">
           <option value="256">256x256</option>
@@ -186,7 +306,7 @@ img.preview {
           <option value="1024">1024x1024</option>
         </select>
       </div>
-      <div style="flex: 1;">
+      <div>
         <label>容錯等級:</label>
         <select id="qrLevel">
           <option value="L">L (低)</option>
@@ -195,58 +315,59 @@ img.preview {
           <option value="H">H (最高)</option>
         </select>
       </div>
-      <div>
-        <button onclick="generateQRCode()">生成 QR Code</button>
-      </div>
     </div>
-    <div id="qrResult" style="text-align: center; margin-top: 1rem;"></div>
+    <button onclick="generateQRCode()">生成 QR Code</button>
+    <div id="qrResult" style="text-align: center; margin-top: 12px;"></div>
     <div id="qrActions" style="display: none; margin-top: 1rem;">
-      <button onclick="downloadQRCode()">下載 QR Code</button>
-      <button onclick="copyQRCode()">複製 Base64</button>
+      <div class="button-row">
+        <button onclick="downloadQRCode()">下載 QR Code</button>
+        <button onclick="copyQRCode()">複製 Base64</button>
+      </div>
     </div>
   </div>
 
   <!-- Tool 5: SVG → PNG 轉換器 -->
   <div id="svgTool" class="tool">
-    <div style="margin-bottom: 0.5rem;">
+    <p class="muted">支援貼上 SVG 代碼或上傳 SVG，轉成 PNG 後可下載與複製。</p>
+    <div>
       <label>SVG 內容:</label>
       <textarea id="svgInput" placeholder="貼入 SVG 代碼，或使用下方上傳SVG檔案" rows="8"></textarea>
     </div>
-    <div style="margin-bottom: 1rem;">
+    <div>
       <div id="svgDropZone" class="drop-zone">
         拖曳 SVG 檔案到這裡，或點擊選擇檔案
         <input type="file" id="svgFileInput" accept=".svg,image/svg+xml" hidden>
       </div>
     </div>
-    <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; align-items: center; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 120px;">
+    <div class="grid-4">
+      <div>
         <label>輸出寬度:</label>
         <input type="number" id="svgWidth" value="800" min="1" max="4000">
       </div>
-      <div style="flex: 1; min-width: 120px;">
+      <div>
         <label>輸出高度:</label>
         <input type="number" id="svgHeight" value="600" min="1" max="4000">
       </div>
-      <div style="flex: 1; min-width: 120px;">
-        <label>背景色:</label>
-        <input type="color" id="svgBg" value="#ffffff" style="height: 32px;">
-      </div>
       <div>
-        <label style="display: flex; align-items: center; gap: 5px;">
+        <label>背景色:</label>
+        <input type="color" id="svgBg" value="#ffffff" style="height: 40px;">
+      </div>
+      <div style="display:flex; align-items:end;">
+        <label style="display: flex; align-items: center; gap: 7px; margin: 0;">
           <input type="checkbox" id="svgTransparent" checked> 透明背景
         </label>
       </div>
-      <div>
-        <button onclick="convertSvgToPng()">轉換為 PNG</button>
-      </div>
     </div>
+    <button onclick="convertSvgToPng()">轉換為 PNG</button>
     <div id="svgPreviewContainer" style="text-align: center; margin-top: 1rem; display: none;">
       <h4>預覽:</h4>
       <img id="svgPreview" class="preview" style="max-height: 400px;">
     </div>
     <div id="svgActions" style="display: none; margin-top: 1rem;">
-      <button onclick="downloadSvgPng()">下載 PNG</button>
-      <button onclick="copySvgPngBase64()">複製 Base64</button>
+      <div class="button-row">
+        <button onclick="downloadSvgPng()">下載 PNG</button>
+        <button onclick="copySvgPngBase64()">複製 Base64</button>
+      </div>
     </div>
   </div>
 </div>
