@@ -42,6 +42,29 @@ body {
   box-shadow: 0 16px 40px rgba(19, 39, 82, 0.12);
   padding: 20px;
 }
+.app-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 14px;
+}
+.side-nav {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  height: fit-content;
+  position: sticky;
+  top: 16px;
+}
+.side-title {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 2px 0 10px;
+  font-weight: 700;
+}
+.content-pane {
+  min-width: 0;
+}
 .topbar {
   display: flex;
   align-items: center;
@@ -69,12 +92,13 @@ h2 {
 }
 .tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  margin: 0 0 14px;
+  margin: 0;
 }
 .tab {
-  flex: 1 1 160px;
+  width: 100%;
+  text-align: left;
   border: 1px solid var(--line);
   background: #fff;
   color: #385070;
@@ -200,6 +224,20 @@ img.preview {
   .container { padding: 14px; border-radius: 14px; }
   h2 { font-size: 22px; }
   .topbar { flex-direction: column; align-items: flex-start; }
+  .app-shell { grid-template-columns: 1fr; }
+  .side-nav {
+    position: static;
+    overflow-x: auto;
+  }
+  .tabs {
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+  .tab {
+    min-width: 150px;
+    width: auto;
+    text-align: center;
+  }
   .grid-4, .grid-2 { grid-template-columns: 1fr; }
 }
 </style>
@@ -213,27 +251,31 @@ img.preview {
     </div>
     <div class="badge">Utility Suite</div>
   </div>
-  
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab active" data-target="textTool">文字轉換</button>
-    <button class="tab" data-target="imageTool">圖片 → Base64</button>
-    <button class="tab" data-target="placeholderTool">Placeholder 生成</button>
-    <button class="tab" data-target="qrTool">QR Code 生成</button>
-    <button class="tab" data-target="svgTool">SVG → PNG</button>
-  </div>
 
-  <!-- Tool 1: Unicode/JSON → 中文 -->
-  <div id="textTool" class="tool active">
+  <div class="app-shell">
+    <aside class="side-nav">
+      <div class="side-title">功能導覽</div>
+      <div class="tabs">
+        <button class="tab active" data-target="textTool">文字轉換</button>
+        <button class="tab" data-target="imageTool">圖片 → Base64</button>
+        <button class="tab" data-target="placeholderTool">Placeholder 生成</button>
+        <button class="tab" data-target="qrTool">QR Code 生成</button>
+        <button class="tab" data-target="svgTool">SVG → PNG</button>
+      </div>
+    </aside>
+
+    <section class="content-pane">
+      <!-- Tool 1: Unicode/JSON → 中文 -->
+      <div id="textTool" class="tool active">
     <p class="muted">支援 \uXXXX、\u{XXXX} 以及 JSON 字串解析。</p>
     <textarea id="input" placeholder="貼入 JSON 或 \uXXXX、\u{XXXX}"></textarea>
     <button onclick="convert()">轉換</button>
     <h3>結果：</h3>
     <pre id="output"></pre>
-  </div>
+      </div>
 
-  <!-- Tool 2: 圖片 → Base64 -->
-  <div id="imageTool" class="tool">
+      <!-- Tool 2: 圖片 → Base64 -->
+      <div id="imageTool" class="tool">
     <p class="muted">拖曳或選取圖片後，立即轉為 Base64。</p>
     <div id="dropZone" class="drop-zone">
       拖曳圖片到這裡，或點擊選擇圖片
@@ -242,10 +284,10 @@ img.preview {
     <textarea id="base64Output" placeholder="Base64 會顯示在這裡"></textarea>
     <button onclick="copyBase64()">複製 Base64</button>
     <img id="preview" class="preview">
-  </div>
+      </div>
 
-  <!-- Tool 3: Placeholder 生成器 -->
-  <div id="placeholderTool" class="tool">
+      <!-- Tool 3: Placeholder 生成器 -->
+      <div id="placeholderTool" class="tool">
     <p class="muted">快速產生展示用占位圖，可直接下載或複製資料 URL。</p>
     <div class="grid-4">
       <div>
@@ -288,10 +330,10 @@ img.preview {
       <button onclick="downloadPlaceholder()">下載圖片</button>
     </div>
     <input type="text" id="phURL" readonly>
-  </div>
+      </div>
 
-  <!-- Tool 4: QR Code 生成器 -->
-  <div id="qrTool" class="tool">
+      <!-- Tool 4: QR Code 生成器 -->
+      <div id="qrTool" class="tool">
     <p class="muted">可選尺寸與容錯級別，產生後可下載或複製 Base64。</p>
     <div>
       <label>文字/網址:</label>
@@ -324,10 +366,10 @@ img.preview {
         <button onclick="copyQRCode()">複製 Base64</button>
       </div>
     </div>
-  </div>
+      </div>
 
-  <!-- Tool 5: SVG → PNG 轉換器 -->
-  <div id="svgTool" class="tool">
+      <!-- Tool 5: SVG → PNG 轉換器 -->
+      <div id="svgTool" class="tool">
     <p class="muted">支援貼上 SVG 代碼或上傳 SVG，轉成 PNG 後可下載與複製。</p>
     <div>
       <label>SVG 內容:</label>
@@ -369,6 +411,8 @@ img.preview {
         <button onclick="copySvgPngBase64()">複製 Base64</button>
       </div>
     </div>
+      </div>
+    </section>
   </div>
 </div>
 
