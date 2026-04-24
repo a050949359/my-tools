@@ -50,8 +50,9 @@
 
 ## 檔案說明
 
-- `decoding.html`：主要工具檔案，包含所有功能
+- `index.html`：主要工具檔案，包含所有功能
 - `qrcode.min.js`：QR Code 生成函式庫
+- `.nojekyll`：停用 Jekyll，讓 GitHub Pages 直接提供靜態檔案
 
 ## 注意事項
 
