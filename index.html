@@ -629,6 +629,7 @@ function copySvgPngBase64() {
 /* ---------- HEIC → PNG 轉換器 ---------- */
 let currentHeicFile = null;
 let currentHeicPngDataURL = '';
+let currentHeicDetectedType = 'unknown';
 
 const heicDropZone = document.getElementById('heicDropZone');
 const heicFileInput = document.getElementById('heicFileInput');
@@ -647,7 +648,7 @@ heicDropZone.addEventListener('drop', e => {
 });
 heicFileInput.addEventListener('change', e => handleHeicFile(e.target.files[0]));
 
-function handleHeicFile(file) {
+async function handleHeicFile(file) {
   if (!file) return;
 
   const name = (file.name || '').toLowerCase();
@@ -660,10 +661,13 @@ function handleHeicFile(file) {
   }
 
   currentHeicFile = file;
+  currentHeicDetectedType = await detectImageContainer(file);
   currentHeicPngDataURL = '';
   document.getElementById('heicActions').style.display = 'none';
   document.getElementById('heicPreviewContainer').style.display = 'none';
-  heicStatus.textContent = `已選擇：${file.name} (${Math.round(file.size / 1024)} KB)，正在轉換...`;
+
+  const sizeKb = Math.round(file.size / 1024);
+  heicStatus.textContent = `已選擇：${file.name} (${sizeKb} KB)，偵測格式：${currentHeicDetectedType}，正在轉換...`;
 
   // 選擇或拖曳檔案後立即轉換，避免使用者誤以為沒有反應。
   convertHeicToPng();
@@ -682,6 +686,20 @@ async function convertHeicToPng() {
 
   const qualityInput = parseFloat(document.getElementById('heicQuality').value);
   const quality = Number.isFinite(qualityInput) ? Math.min(1, Math.max(0.1, qualityInput)) : 0.92;
+
+  // 若瀏覽器可直接解碼，直接走原生路徑，避免 heic2any 報「already browser readable」。
+  if (currentHeicDetectedType === 'jpeg' || currentHeicDetectedType === 'png') {
+    try {
+      heicStatus.textContent = `偵測到 ${currentHeicDetectedType.toUpperCase()}，直接轉為 PNG...`;
+      await convertBrowserReadableImageToPng(currentHeicFile, quality);
+      heicStatus.textContent = '轉換完成，可下載 PNG 或複製 Base64。';
+      return;
+    } catch (error) {
+      heicStatus.textContent = '原生轉換失敗，請確認檔案是否有效。';
+      alert('HEIC 轉換失敗：' + (error && error.message ? error.message : error));
+      return;
+    }
+  }
 
   try {
     const result = await heic2any({
@@ -708,9 +726,96 @@ async function convertHeicToPng() {
 
     reader.readAsDataURL(pngBlob);
   } catch (error) {
+    // 某些裝置/瀏覽器上，副檔名是 HEIC 但實際已可被瀏覽器直接讀取（如 JPEG）。
+    // 這種情況改走原生解碼再輸出 PNG。
+    const msg = error && error.message ? error.message : String(error || '');
+    if (msg.includes('ERR_USER Image is already browser readable')) {
+      try {
+        heicStatus.textContent = '檔案可直接讀取，改用原生模式轉 PNG...';
+        await convertBrowserReadableImageToPng(currentHeicFile, quality);
+        heicStatus.textContent = '轉換完成，可下載 PNG 或複製 Base64。';
+        return;
+      } catch (fallbackError) {
+        heicStatus.textContent = '原生轉換失敗，請確認檔案是否有效。';
+        alert('HEIC 轉換失敗：' + (fallbackError && fallbackError.message ? fallbackError.message : fallbackError));
+        return;
+      }
+    }
+
     heicStatus.textContent = 'HEIC 轉換失敗，請確認檔案是否有效。';
     alert('HEIC 轉換失敗：' + (error && error.message ? error.message : error));
   }
+}
+
+async function detectImageContainer(file) {
+  try {
+    const buffer = await file.slice(0, 64).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    // JPEG: FF D8 FF
+    if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+      return 'jpeg';
+    }
+
+    // PNG: 89 50 4E 47
+    if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+      return 'png';
+    }
+
+    // ISO BMFF family (HEIC/HEIF usually with ftyp + heic/heif brands)
+    const ascii = Array.from(bytes).map(b => String.fromCharCode(b)).join('');
+    if (ascii.includes('ftyp')) {
+      const heifBrands = ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1'];
+      if (heifBrands.some(brand => ascii.includes(brand))) {
+        return 'heic';
+      }
+      return 'iso-bmff';
+    }
+
+    return 'unknown';
+  } catch (_) {
+    return 'unknown';
+  }
+}
+
+function convertBrowserReadableImageToPng(file, quality) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error('無法取得 Canvas context'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        currentHeicPngDataURL = canvas.toDataURL('image/png', quality);
+        document.getElementById('heicPreview').src = currentHeicPngDataURL;
+        document.getElementById('heicPreviewContainer').style.display = 'block';
+        document.getElementById('heicActions').style.display = 'block';
+        URL.revokeObjectURL(url);
+        resolve();
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        reject(err);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('瀏覽器無法讀取該圖片資料'));
+    };
+
+    img.src = url;
+  });
 }
 
 function downloadHeicPng() {
