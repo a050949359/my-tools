@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>多功能轉換工具</title>
 <script src="qrcode.min.js"></script>
+<script src="heic2any.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -29,6 +30,7 @@
         <button class="tab" data-target="placeholderTool">Placeholder 生成</button>
         <button class="tab" data-target="qrTool">QR Code 生成</button>
         <button class="tab" data-target="svgTool">SVG → PNG</button>
+        <button class="tab" data-target="heicTool">HEIC → PNG</button>
       </div>
     </aside>
 
@@ -177,6 +179,34 @@
       <div class="button-row">
         <button onclick="downloadSvgPng()">下載 PNG</button>
         <button onclick="copySvgPngBase64()">複製 Base64</button>
+      </div>
+    </div>
+      </div>
+
+      <!-- Tool 6: HEIC → PNG 轉換器 -->
+      <div id="heicTool" class="tool">
+    <p class="muted">支援上傳或拖曳 HEIC/HEIF，轉成 PNG 後可下載與複製 Base64。</p>
+    <div id="heicDropZone" class="drop-zone">
+      拖曳 HEIC 檔案到這裡，或點擊選擇檔案
+      <input type="file" id="heicFileInput" accept=".heic,.heif,image/heic,image/heif" hidden>
+    </div>
+    <div class="grid-2">
+      <div>
+        <label>輸出品質 (0.1 ~ 1.0):</label>
+        <input type="number" id="heicQuality" value="0.92" min="0.1" max="1" step="0.01">
+      </div>
+      <div style="display:flex; align-items:end;">
+        <button onclick="convertHeicToPng()">轉換為 PNG</button>
+      </div>
+    </div>
+    <div id="heicPreviewContainer" style="text-align: center; margin-top: 1rem; display: none;">
+      <h4>預覽:</h4>
+      <img id="heicPreview" class="preview" style="max-height: 400px;">
+    </div>
+    <div id="heicActions" style="display: none; margin-top: 1rem;">
+      <div class="button-row">
+        <button onclick="downloadHeicPng()">下載 PNG</button>
+        <button onclick="copyHeicPngBase64()">複製 Base64</button>
       </div>
     </div>
       </div>
@@ -587,6 +617,119 @@ function copySvgPngBase64() {
     // Fallback
     const textarea = document.createElement('textarea');
     textarea.value = currentSvgPngDataURL;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    alert('PNG Base64 已複製');
+  });
+}
+
+/* ---------- HEIC → PNG 轉換器 ---------- */
+let currentHeicFile = null;
+let currentHeicPngDataURL = '';
+
+const heicDropZone = document.getElementById('heicDropZone');
+const heicFileInput = document.getElementById('heicFileInput');
+
+heicDropZone.addEventListener('click', () => heicFileInput.click());
+heicDropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  heicDropZone.classList.add('dragover');
+});
+heicDropZone.addEventListener('dragleave', () => heicDropZone.classList.remove('dragover'));
+heicDropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  heicDropZone.classList.remove('dragover');
+  handleHeicFile(e.dataTransfer.files[0]);
+});
+heicFileInput.addEventListener('change', e => handleHeicFile(e.target.files[0]));
+
+function handleHeicFile(file) {
+  if (!file) return;
+
+  const name = (file.name || '').toLowerCase();
+  const isHeicLike = name.endsWith('.heic') || name.endsWith('.heif') ||
+    file.type === 'image/heic' || file.type === 'image/heif';
+
+  if (!isHeicLike) {
+    alert('請選擇 HEIC/HEIF 檔案');
+    return;
+  }
+
+  currentHeicFile = file;
+  currentHeicPngDataURL = '';
+  document.getElementById('heicActions').style.display = 'none';
+  document.getElementById('heicPreviewContainer').style.display = 'none';
+}
+
+async function convertHeicToPng() {
+  if (!currentHeicFile) {
+    alert('請先選擇 HEIC/HEIF 檔案');
+    return;
+  }
+
+  if (typeof heic2any === 'undefined') {
+    alert('HEIC 轉檔庫未載入，請檢查網路或重新整理頁面');
+    return;
+  }
+
+  const qualityInput = parseFloat(document.getElementById('heicQuality').value);
+  const quality = Number.isFinite(qualityInput) ? Math.min(1, Math.max(0.1, qualityInput)) : 0.92;
+
+  try {
+    const result = await heic2any({
+      blob: currentHeicFile,
+      toType: 'image/png',
+      quality: quality
+    });
+
+    const pngBlob = Array.isArray(result) ? result[0] : result;
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      currentHeicPngDataURL = reader.result;
+      document.getElementById('heicPreview').src = currentHeicPngDataURL;
+      document.getElementById('heicPreviewContainer').style.display = 'block';
+      document.getElementById('heicActions').style.display = 'block';
+    };
+
+    reader.onerror = () => {
+      alert('讀取轉換結果失敗');
+    };
+
+    reader.readAsDataURL(pngBlob);
+  } catch (error) {
+    alert('HEIC 轉換失敗：' + (error && error.message ? error.message : error));
+  }
+}
+
+function downloadHeicPng() {
+  if (!currentHeicPngDataURL) {
+    alert('請先完成轉換');
+    return;
+  }
+
+  const originalName = currentHeicFile && currentHeicFile.name
+    ? currentHeicFile.name.replace(/\.[^.]+$/, '')
+    : 'heic_image';
+  const link = document.createElement('a');
+  link.download = `${originalName}.png`;
+  link.href = currentHeicPngDataURL;
+  link.click();
+}
+
+function copyHeicPngBase64() {
+  if (!currentHeicPngDataURL) {
+    alert('請先完成轉換');
+    return;
+  }
+
+  navigator.clipboard.writeText(currentHeicPngDataURL).then(() => {
+    alert('PNG Base64 已複製');
+  }).catch(() => {
+    const textarea = document.createElement('textarea');
+    textarea.value = currentHeicPngDataURL;
     document.body.appendChild(textarea);
     textarea.select();
     document.execCommand('copy');
