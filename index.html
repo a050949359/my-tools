@@ -190,6 +190,7 @@
       拖曳 HEIC 檔案到這裡，或點擊選擇檔案
       <input type="file" id="heicFileInput" accept=".heic,.heif,image/heic,image/heif" hidden>
     </div>
+    <p id="heicStatus" class="muted">尚未選擇檔案</p>
     <div class="grid-2">
       <div>
         <label>輸出品質 (0.1 ~ 1.0):</label>
@@ -631,6 +632,7 @@ let currentHeicPngDataURL = '';
 
 const heicDropZone = document.getElementById('heicDropZone');
 const heicFileInput = document.getElementById('heicFileInput');
+const heicStatus = document.getElementById('heicStatus');
 
 heicDropZone.addEventListener('click', () => heicFileInput.click());
 heicDropZone.addEventListener('dragover', e => {
@@ -661,6 +663,10 @@ function handleHeicFile(file) {
   currentHeicPngDataURL = '';
   document.getElementById('heicActions').style.display = 'none';
   document.getElementById('heicPreviewContainer').style.display = 'none';
+  heicStatus.textContent = `已選擇：${file.name} (${Math.round(file.size / 1024)} KB)，正在轉換...`;
+
+  // 選擇或拖曳檔案後立即轉換，避免使用者誤以為沒有反應。
+  convertHeicToPng();
 }
 
 async function convertHeicToPng() {
@@ -692,14 +698,17 @@ async function convertHeicToPng() {
       document.getElementById('heicPreview').src = currentHeicPngDataURL;
       document.getElementById('heicPreviewContainer').style.display = 'block';
       document.getElementById('heicActions').style.display = 'block';
+      heicStatus.textContent = '轉換完成，可下載 PNG 或複製 Base64。';
     };
 
     reader.onerror = () => {
+      heicStatus.textContent = '讀取轉換結果失敗';
       alert('讀取轉換結果失敗');
     };
 
     reader.readAsDataURL(pngBlob);
   } catch (error) {
+    heicStatus.textContent = 'HEIC 轉換失敗，請確認檔案是否有效。';
     alert('HEIC 轉換失敗：' + (error && error.message ? error.message : error));
   }
 }
