@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
 </head>
-<body data-tool="text">
+<body>
 <div class="container">
   <div class="topbar">
     <div>
@@ -18,23 +18,11 @@
     </div>
     <div class="badge">Utility Suite</div>
   </div>
-
   <div class="app-shell">
     <aside class="side-nav" id="sidebar"></aside>
-
-    <section class="content-pane">
-      <div class="tool active">
-        <p class="muted">支援 \uXXXX、\u{XXXX} 以及 JSON 字串解析。</p>
-        <textarea id="input" placeholder="貼入 JSON 或 \uXXXX、\u{XXXX}"></textarea>
-        <button onclick="convert()">轉換</button>
-        <h3>結果：</h3>
-        <pre id="output"></pre>
-      </div>
-    </section>
+    <section class="content-pane" id="content"></section>
   </div>
 </div>
-
-<script src="assets/nav.js"></script>
-<script src="assets/text.js"></script>
+<script type="module" src="assets/app.js"></script>
 </body>
 </html>
