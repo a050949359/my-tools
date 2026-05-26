@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HEIC → PNG — 多功能轉換工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-tool="heic">
+<div class="container">
+  <div class="topbar">
+    <div>
+      <h2>多功能轉換工具</h2>
+      <p>Base64、QR、SVG 與文字轉換，一頁完成</p>
+    </div>
+    <div class="badge">Utility Suite</div>
+  </div>
+  <div class="app-shell">
+    <aside class="side-nav" id="sidebar"></aside>
+    <section class="content-pane">
+      <div class="tool active">
+        <p class="muted">支援上傳或拖曳 HEIC/HEIF，轉成 PNG 後可下載與複製 Base64。</p>
+        <div id="heicDropZone" class="drop-zone">
+          拖曳 HEIC 檔案到這裡，或點擊選擇檔案
+          <input type="file" id="heicFileInput" accept=".heic,.heif,image/heic,image/heif" hidden>
+        </div>
+        <p id="heicStatus" class="muted">尚未選擇檔案</p>
+        <div class="grid-2">
+          <div>
+            <label>輸出品質 (0.1 ~ 1.0):</label>
+            <input type="number" id="heicQuality" value="0.92" min="0.1" max="1" step="0.01">
+          </div>
+          <div style="display:flex; align-items:end;">
+            <button onclick="convertHeicToPng()">轉換為 PNG</button>
+          </div>
+        </div>
+        <div id="heicPreviewContainer" style="text-align: center; margin-top: 1rem; display: none;">
+          <h4>預覽:</h4>
+          <img id="heicPreview" class="preview" style="max-height: 400px;">
+        </div>
+        <div id="heicActions" style="display: none; margin-top: 1rem;">
+          <div class="button-row">
+            <button onclick="downloadHeicPng()">下載 PNG</button>
+            <button onclick="copyHeicPngBase64()">複製 Base64</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="../assets/heic2any.min.js"></script>
+<script src="../assets/nav.js"></script>
+<script src="../assets/heic.js"></script>
+</body>
+</html>

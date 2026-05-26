@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG → PNG — 多功能轉換工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-tool="svg">
+<div class="container">
+  <div class="topbar">
+    <div>
+      <h2>多功能轉換工具</h2>
+      <p>Base64、QR、SVG 與文字轉換，一頁完成</p>
+    </div>
+    <div class="badge">Utility Suite</div>
+  </div>
+  <div class="app-shell">
+    <aside class="side-nav" id="sidebar"></aside>
+    <section class="content-pane">
+      <div class="tool active">
+        <p class="muted">支援貼上 SVG 代碼或上傳 SVG，轉成 PNG 後可下載與複製。</p>
+        <div>
+          <label>SVG 內容:</label>
+          <textarea id="svgInput" placeholder="貼入 SVG 代碼，或使用下方上傳SVG檔案" rows="8"></textarea>
+        </div>
+        <div>
+          <div id="svgDropZone" class="drop-zone">
+            拖曳 SVG 檔案到這裡，或點擊選擇檔案
+            <input type="file" id="svgFileInput" accept=".svg,image/svg+xml" hidden>
+          </div>
+        </div>
+        <div class="grid-4">
+          <div>
+            <label>輸出寬度:</label>
+            <input type="number" id="svgWidth" value="800" min="1" max="4000">
+          </div>
+          <div>
+            <label>輸出高度:</label>
+            <input type="number" id="svgHeight" value="600" min="1" max="4000">
+          </div>
+          <div>
+            <label>背景色:</label>
+            <input type="color" id="svgBg" value="#ffffff" style="height: 40px;">
+          </div>
+          <div style="display:flex; align-items:end;">
+            <label style="display: flex; align-items: center; gap: 7px; margin: 0;">
+              <input type="checkbox" id="svgTransparent" checked> 透明背景
+            </label>
+          </div>
+        </div>
+        <button onclick="convertSvgToPng()">轉換為 PNG</button>
+        <div id="svgPreviewContainer" style="text-align: center; margin-top: 1rem; display: none;">
+          <h4>預覽:</h4>
+          <img id="svgPreview" class="preview" style="max-height: 400px;">
+        </div>
+        <div id="svgActions" style="display: none; margin-top: 1rem;">
+          <div class="button-row">
+            <button onclick="downloadSvgPng()">下載 PNG</button>
+            <button onclick="copySvgPngBase64()">複製 Base64</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="../assets/nav.js"></script>
+<script src="../assets/svg.js"></script>
+</body>
+</html>

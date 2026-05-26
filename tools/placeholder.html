@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Placeholder 生成 — 多功能轉換工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-tool="placeholder">
+<div class="container">
+  <div class="topbar">
+    <div>
+      <h2>多功能轉換工具</h2>
+      <p>Base64、QR、SVG 與文字轉換，一頁完成</p>
+    </div>
+    <div class="badge">Utility Suite</div>
+  </div>
+  <div class="app-shell">
+    <aside class="side-nav" id="sidebar"></aside>
+    <section class="content-pane">
+      <div class="tool active">
+        <p class="muted">快速產生展示用占位圖，可直接下載或複製資料 URL。</p>
+        <div class="grid-4">
+          <div>
+            <label>寬度 (px):</label>
+            <input type="number" id="phWidth" value="600">
+          </div>
+          <div>
+            <label>高度 (px):</label>
+            <input type="number" id="phHeight" value="200">
+          </div>
+          <div>
+            <label>背景色:</label>
+            <input type="color" id="phBg" value="#cccccc" style="height: 40px;">
+          </div>
+          <div>
+            <label>文字色:</label>
+            <input type="color" id="phColor" value="#000000" style="height: 40px;">
+          </div>
+        </div>
+        <div>
+          <label>文字:</label>
+          <input type="text" id="phText" value="600x200">
+        </div>
+        <div class="grid-2">
+          <div>
+            <label>檔案類型:</label>
+            <select id="phFormat">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPG</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:end;">
+            <button onclick="generatePlaceholder()">生成預覽</button>
+          </div>
+        </div>
+        <img id="phPreview" class="preview">
+        <div class="button-row">
+          <button onclick="copyPlaceholderURL()">複製 Base64</button>
+          <button onclick="downloadPlaceholder()">下載圖片</button>
+        </div>
+        <input type="text" id="phURL" readonly>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="../assets/nav.js"></script>
+<script src="../assets/placeholder.js"></script>
+</body>
+</html>

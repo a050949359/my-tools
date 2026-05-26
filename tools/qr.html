@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code 生成 — 多功能轉換工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-tool="qr">
+<div class="container">
+  <div class="topbar">
+    <div>
+      <h2>多功能轉換工具</h2>
+      <p>Base64、QR、SVG 與文字轉換，一頁完成</p>
+    </div>
+    <div class="badge">Utility Suite</div>
+  </div>
+  <div class="app-shell">
+    <aside class="side-nav" id="sidebar"></aside>
+    <section class="content-pane">
+      <div class="tool active">
+        <p class="muted">可選尺寸與容錯級別，產生後可下載或複製 Base64。</p>
+        <div>
+          <label>文字/網址:</label>
+          <textarea id="qrInput" placeholder="輸入要產生 QR Code 的文字或網址" rows="3"></textarea>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label>尺寸:</label>
+            <select id="qrSize">
+              <option value="256">256x256</option>
+              <option value="512" selected>512x512</option>
+              <option value="1024">1024x1024</option>
+            </select>
+          </div>
+          <div>
+            <label>容錯等級:</label>
+            <select id="qrLevel">
+              <option value="L">L (低)</option>
+              <option value="M" selected>M (中)</option>
+              <option value="Q">Q (高)</option>
+              <option value="H">H (最高)</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="generateQRCode()">生成 QR Code</button>
+        <div id="qrResult" style="text-align: center; margin-top: 12px;"></div>
+        <div id="qrActions" style="display: none; margin-top: 1rem;">
+          <div class="button-row">
+            <button onclick="downloadQRCode()">下載 QR Code</button>
+            <button onclick="copyQRCode()">複製 Base64</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="../assets/qrcode.min.js"></script>
+<script src="../assets/nav.js"></script>
+<script src="../assets/qr.js"></script>
+</body>
+</html>
