@@ -30,6 +30,8 @@ const TOOL_GROUPS = [
 
 const TOOLS = TOOL_GROUPS.flatMap(g => g.tools);
 
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 // ── Sidebar (desktop) ─────────────────────────────────────────────────────────
 const sidebar = document.getElementById('sidebar');
 sidebar.innerHTML = `
@@ -41,7 +43,7 @@ sidebar.innerHTML = `
     ${TOOL_GROUPS.map(g => `
       <div class="nav-group">
         <div class="nav-group-label">
-          <span class="nav-group-icon">${g.icon}</span>
+          <span class="nav-group-icon">${escHtml(g.icon)}</span>
           ${g.label}
         </div>
         ${g.tools.map(t =>
@@ -58,7 +60,7 @@ mobileBar.innerHTML = `
   <div class="logo-icon" style="width:22px;height:22px;font-size:11px;flex-shrink:0;">🛠</div>
   <select id="mobileSelect" class="mobile-select">
     ${TOOL_GROUPS.map(g => `
-      <optgroup label="${g.icon} ${g.label}">
+      <optgroup label="${escHtml(g.icon)} ${g.label}">
         ${g.tools.map(t => `<option value="${t.id}">${t.label}</option>`).join('')}
       </optgroup>
     `).join('')}

@@ -730,7 +730,7 @@ mark.json-mark-cur {
   margin-bottom: 14px;
 }
 
-.edit-tab {
+.edit-tab, .wm-tab {
   flex: 1;
   margin: 0;
   border-radius: 0;
@@ -745,16 +745,16 @@ mark.json-mark-cur {
   transition: background 0.1s;
 }
 
-.edit-tab:last-child { border-right: none; }
+.edit-tab:last-child, .wm-tab:last-child { border-right: none; }
 
-.edit-tab:hover {
+.edit-tab:hover, .wm-tab:hover {
   background: var(--surface-container);
   opacity: 1;
   filter: none;
   color: var(--on-surface);
 }
 
-.edit-tab.active {
+.edit-tab.active, .wm-tab.active {
   background: var(--surface-container);
   color: var(--on-surface);
 }
@@ -882,23 +882,41 @@ mark.json-mark-cur {
     flex-shrink: 0;
   }
 
-  /* header → footer */
-  .content-wrap { flex-direction: column; }
-  .mobile-bar   { order: 1; }
-  .content-pane { order: 2; flex: 1; padding: 14px; }
+  /* 固定 top bar */
+  .mobile-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--outline);
+  }
+
+  /* 固定 footer */
   .content-header {
-    order: 3;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
     border-top: 1px solid var(--outline);
     border-bottom: none;
     padding: 10px 14px;
     justify-content: center;
+    background: var(--surface);
+  }
+
+  /* content-pane 在兩個固定 bar 之間滾動 */
+  .content-wrap { display: block; }
+  .content-pane {
+    padding: calc(50px + 14px) 14px calc(58px + 14px);
+    min-height: 100vh;
   }
 
   /* 隱藏標題，只留按鈕 */
   .content-header-left { display: none; }
 
-  /* 沒有任何按鈕時不佔空間 */
+  /* 沒有任何按鈕時 footer 不顯示 */
   .content-header:not(:has(button)) { display: none; }
+
+  /* 無 footer 時下方 padding 縮回 */
+  .content-header:not(:has(button)) ~ * { padding-bottom: 14px; }
 
   /* 按鈕橫排填滿 */
   .header-actions { width: 100%; justify-content: center; gap: 12px; }

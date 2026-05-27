@@ -12,6 +12,7 @@ let _dragAction   = null;   // 'draw' | 'move' | 'resize'
 let _resizeHandle = null;   // 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'
 let _rectOrigin   = null;   // {rect, mouse} snapshot when move/resize begins
 let _cleanSnap    = null;   // ImageData of canvas after last confirmed operation
+let _wmBase       = null;   // ImageData snapshot taken when entering watermark tab
 
 export function template() {
   return `
@@ -57,8 +58,8 @@ export function template() {
           <div class="edit-panel" id="panel-watermark" style="display:none;">
             <!-- 模式切換 -->
             <div class="edit-tabs" style="margin-bottom:10px;">
-              <button class="edit-tab active" id="wmModePoint">單點</button>
-              <button class="edit-tab" id="wmModeTile">平鋪</button>
+              <button class="wm-tab active" id="wmModePoint">單點</button>
+              <button class="wm-tab" id="wmModeTile">平鋪</button>
             </div>
             <div><label>文字</label><input type="text" id="wmText" value="© 2025"></div>
             <div class="grid-2">
@@ -145,8 +146,14 @@ export function init() {
   // Tabs
   document.querySelectorAll('.edit-tab').forEach(btn => {
     btn.addEventListener('click', () => {
+      const prev = _mode;
       _mode = btn.dataset.tab;
       _cropRect = null;
+
+      // 離開浮水印 → 清底圖；進入浮水印 → 存底圖
+      if (prev !== 'watermark') _wmBase = null;
+      if (_mode === 'watermark' && _cleanSnap) _wmBase = _cleanSnap;
+
       document.querySelectorAll('.edit-tab').forEach(b => b.classList.toggle('active', b === btn));
       document.querySelectorAll('.edit-panel').forEach(p => p.style.display = 'none');
       document.getElementById(`panel-${_mode}`).style.display = 'block';
@@ -494,6 +501,8 @@ function applyWatermark(pos) {
   if (!text) return;
 
   pushHistory();
+  // 從底圖重繪，避免疊加
+  if (_wmBase) _ctx.putImageData(_wmBase, 0, 0);
   _ctx.save();
   _ctx.globalAlpha = opacity;
   _ctx.font = `bold ${size}px Geist, sans-serif`;
@@ -525,6 +534,8 @@ function applyTiledWatermark() {
   if (!text) return;
 
   pushHistory();
+  // 從底圖重繪，避免疊加
+  if (_wmBase) _ctx.putImageData(_wmBase, 0, 0);
   _ctx.save();
   _ctx.globalAlpha = opacity;
   _ctx.font = `bold ${size}px Geist, sans-serif`;
