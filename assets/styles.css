@@ -882,9 +882,27 @@ mark.json-mark-cur {
     flex-shrink: 0;
   }
 
-  .content-header { padding: 10px 14px; flex-wrap: wrap; }
-  .tool-title { font-size: 15px; }
-  .content-pane { padding: 14px; }
+  /* header → footer */
+  .content-wrap { flex-direction: column; }
+  .mobile-bar   { order: 1; }
+  .content-pane { order: 2; flex: 1; padding: 14px; }
+  .content-header {
+    order: 3;
+    border-top: 1px solid var(--outline);
+    border-bottom: none;
+    padding: 10px 14px;
+    justify-content: center;
+  }
+
+  /* 隱藏標題，只留按鈕 */
+  .content-header-left { display: none; }
+
+  /* 沒有任何按鈕時不佔空間 */
+  .content-header:not(:has(button)) { display: none; }
+
+  /* 按鈕橫排填滿 */
+  .header-actions { width: 100%; justify-content: center; gap: 12px; }
+  .run-btn, .reset-btn { flex: 1; max-width: 160px; justify-content: center; }
 
   .grid-4, .grid-2 { grid-template-columns: 1fr; }
 }
