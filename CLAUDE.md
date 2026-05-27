@@ -56,7 +56,8 @@ export function reset() { /* 清空狀態，header 會自動出現「↺ 重置�
 
 ### 3. 標記主要動作按鈕
 
-在 `template()` 的主按鈕加上 `data-primary`，header 的「▶ 執行」才會出現並連動：
+在 `template()` 的主按鈕加上 `data-primary`，header 的「▶ 執行」才會出現並連動。
+`[data-primary]` 按鈕會被 CSS 自動隱藏（功能已串到 header），不需手動加 `hidden`：
 
 ```html
 <button id="myRunBtn" data-primary>執行</button>

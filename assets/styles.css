@@ -147,6 +147,28 @@ body {
   white-space: nowrap;
 }
 
+
+/* Ghost 按鈕（次要動作，如複製、下載） */
+.btn-ghost {
+  margin-top: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  border: 1px solid var(--outline-strong);
+  font-weight: 500;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.btn-ghost:hover {
+  background: var(--surface-container);
+  opacity: 1;
+  filter: none;
+}
+
+/* 有 data-primary 的按鈕功能已串到 header ▶ 執行，不需顯示 */
+[data-primary] { display: none; }
+
+/* .active-badge — 保留備用，可在 app.js 加回 <span class="active-badge"> */
 .active-badge {
   background: transparent;
   color: var(--primary);

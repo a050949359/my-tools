@@ -20,7 +20,8 @@ const TOOL_GROUPS = [
     label: '開發者工具',
     icon: '</>',
     tools: [
-      { id: 'qr', label: 'QR Code 生成', src: './tools/qr.js' },
+      { id: 'qr',  label: 'QR Code 生成',  src: './tools/qr.js'  },
+      { id: 'rsa', label: 'RSA 金鑰產生器', src: './tools/rsa.js' },
     ]
   },
 ];
@@ -75,7 +76,6 @@ async function navigate(id) {
   contentHeader.innerHTML = `
     <div class="content-header-left">
       <h1 class="tool-title">${tool.label}</h1>
-      <span class="active-badge">使用中</span>
     </div>
     <div class="header-actions">
       ${mod.reset ? '<button class="reset-btn" id="resetBtn">↺ 重置</button>' : ''}
