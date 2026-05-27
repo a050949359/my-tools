@@ -1,3 +1,5 @@
+let _dataURL = '';
+
 export function template() {
   return `
     <p class="muted">快速產生展示用占位圖，可直接下載或複製資料 URL。</p>
@@ -8,32 +10,29 @@ export function template() {
       <div><label>文字色:</label><input type="color" id="phColor" value="#000000" style="height:40px;"></div>
     </div>
     <div><label>文字:</label><input type="text" id="phText" value="600x200"></div>
-    <div class="grid-2">
-      <div>
-        <label>檔案類型:</label>
-        <select id="phFormat">
-          <option value="png">PNG</option>
-          <option value="jpeg">JPG</option>
-          <option value="webp">WebP</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:end;">
-        <button id="phGenBtn">生成預覽</button>
-      </div>
+    <div><label>檔案類型:</label>
+      <select id="phFormat">
+        <option value="png">PNG</option>
+        <option value="jpeg">JPG</option>
+        <option value="webp">WebP</option>
+      </select>
     </div>
     <img id="phPreview" class="preview">
     <div class="button-row">
       <button id="phCopyBtn">複製 Base64</button>
       <button id="phDownloadBtn">下載圖片</button>
     </div>
-    <input type="text" id="phURL" readonly>
   `;
 }
 
 export function init() {
-  document.getElementById('phGenBtn').addEventListener('click', generate);
+  const inputs = ['phWidth', 'phHeight', 'phBg', 'phColor', 'phText', 'phFormat'];
+  inputs.forEach(id => document.getElementById(id).addEventListener('input', generate));
+
   document.getElementById('phCopyBtn').addEventListener('click', copy);
   document.getElementById('phDownloadBtn').addEventListener('click', download);
+
+  generate(); // 初始渲染
 }
 
 function build() {
@@ -56,14 +55,13 @@ function build() {
 
 function generate() {
   const { dataURL } = build();
+  _dataURL = dataURL;
   document.getElementById('phPreview').src = dataURL;
-  document.getElementById('phURL').value = dataURL;
 }
 
 function copy() {
-  const v = document.getElementById('phURL').value;
-  if (!v) return;
-  navigator.clipboard.writeText(v);
+  if (!_dataURL) return;
+  navigator.clipboard.writeText(_dataURL);
   alert('Base64 圖片數據已複製');
 }
 
