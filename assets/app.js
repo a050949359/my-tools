@@ -63,25 +63,32 @@ async function navigate(id) {
   if (!cache[tool.id]) cache[tool.id] = await import(tool.src);
   const mod = cache[tool.id];
 
-  // Render header
-  contentHeader.innerHTML = `
-    <div class="content-header-left">
-      <h1 class="tool-title">${tool.label}</h1>
-      <span class="active-badge">使用中</span>
-    </div>
-    <button class="run-btn" id="runBtn">▶ 執行</button>
-  `;
-
-  // Render tool
+  // Render tool first
   content.innerHTML = `<div class="tool">${mod.template()}</div>`;
 
   const result = await mod.init();
   if (typeof result === 'function') cleanup = result;
 
-  // Wire Run button → first primary button inside tool
-  document.getElementById('runBtn').addEventListener('click', () => {
-    const firstBtn = content.querySelector('button');
-    if (firstBtn) firstBtn.click();
+  const hasPrimary = !!content.querySelector('[data-primary]');
+
+  // Render header (依工具決定是否顯示執行鍵)
+  contentHeader.innerHTML = `
+    <div class="content-header-left">
+      <h1 class="tool-title">${tool.label}</h1>
+      <span class="active-badge">使用中</span>
+    </div>
+    <div class="header-actions">
+      ${mod.reset ? '<button class="reset-btn" id="resetBtn">↺ 重置</button>' : ''}
+      ${hasPrimary ? '<button class="run-btn" id="runBtn">▶ 執行</button>' : ''}
+    </div>
+  `;
+
+  // Wire Reset button
+  document.getElementById('resetBtn')?.addEventListener('click', () => mod.reset());
+
+  // Wire Run button
+  document.getElementById('runBtn')?.addEventListener('click', () => {
+    content.querySelector('[data-primary]')?.click();
   });
 
   // Update active state in sidebar

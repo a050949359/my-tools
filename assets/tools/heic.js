@@ -25,7 +25,7 @@ export function template() {
         <input type="number" id="heicQuality" value="0.92" min="0.1" max="1" step="0.01">
       </div>
       <div style="display:flex;align-items:end;">
-        <button id="heicConvertBtn">轉換為 PNG</button>
+        <button id="heicConvertBtn" data-primary>轉換為 PNG</button>
       </div>
     </div>
     <div id="heicPreviewContainer" style="text-align:center;margin-top:1rem;display:none;">

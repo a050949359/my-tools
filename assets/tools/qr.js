@@ -45,7 +45,7 @@ export function template() {
         <button id="iconClearBtn" style="margin-top:0;background:#f4f2fd;color:#1a1b22;font-weight:500;padding:6px 12px;font-size:13px;">移除 Icon</button>
       </div>
     </div>
-    <button id="qrGenBtn">生成 QR Code</button>
+    <button id="qrGenBtn" data-primary>生成 QR Code</button>
     <div id="qrResult" style="text-align:center;margin-top:12px;"></div>
     <div id="qrActions" style="display:none;margin-top:1rem;">
       <div class="button-row">
@@ -210,6 +210,17 @@ function copy() {
   navigator.clipboard.writeText(dataURL)
     .then(() => alert('QR Code Base64 已複製'))
     .catch(() => { fallbackCopy(dataURL); alert('QR Code Base64 已複製'); });
+}
+
+export function reset() {
+  dataURL  = '';
+  iconFile = null;
+  document.getElementById('qrInput').value    = '';
+  document.getElementById('qrSize').value     = '512';
+  document.getElementById('qrLevel').value    = 'M';
+  document.getElementById('qrResult').innerHTML = '';
+  document.getElementById('qrActions').style.display = 'none';
+  clearIcon();
 }
 
 function fallbackCopy(text) {

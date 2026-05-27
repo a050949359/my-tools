@@ -20,7 +20,7 @@ export function template() {
         </label>
       </div>
     </div>
-    <button id="svgConvertBtn">轉換為 PNG</button>
+    <button id="svgConvertBtn" data-primary>轉換為 PNG</button>
     <div id="svgPreviewContainer" style="text-align:center;margin-top:1rem;display:none;">
       <h4>預覽:</h4>
       <img id="svgPreview" class="preview" style="max-height:400px;">

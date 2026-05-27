@@ -2,7 +2,7 @@ export function template() {
   return `
     <p class="muted">支援 \\uXXXX、\\u{XXXX} 以及 JSON 字串解析。</p>
     <textarea id="input" placeholder="貼入 JSON 或 \\uXXXX、\\u{XXXX}"></textarea>
-    <button id="convertBtn">轉換</button>
+    <button id="convertBtn" data-primary>轉換</button>
     <h3>結果：</h3>
     <pre id="output"></pre>
   `;
