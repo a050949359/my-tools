@@ -75,6 +75,14 @@
 - **Tree 視圖**：可展開/收合的互動樹狀結構，點擊 key 複製該節點內容
 - **工具列**：格式化、壓縮、Escape、Unescape，右上角 Copy 一鍵複製輸出結果
 
+#### 10. Regex 測試器
+- **引擎**：瀏覽器內建 JS (ECMAScript)，介面標注「JS Engine」（不支援 PCRE 語法）
+- **Pattern 輸入**：`/pattern/` 視覺化，語法錯誤即時顯示
+- **Flags**：`g` `i` `m` `s`，滑鼠停留顯示說明
+- **即時高亮**：測試文字中命中處橘色標記，輸入即更新
+- **匹配清單**：每個 match 顯示編號、值、index；有 capture group 時展開 `$1`, `$2`…
+- **待做**：PCRE WASM 引擎支援（`\K`、possessive quantifier、可變長度 lookbehind 等）
+
 ---
 
 ## 使用說明
@@ -104,7 +112,8 @@ my-tools/
 │   │   ├── qr.js           # QR Code 生成
 │   │   ├── rsa.js          # RSA 金鑰產生器
 │   │   ├── url.js          # URL 解析
-│   │   └── json.js         # JSON 格式化
+│   │   ├── json.js         # JSON 格式化
+│   │   └── regex.js        # Regex 測試器
 │   ├── qrcode.min.js       # QR Code 函式庫（本地）
 │   └── heic2any.min.js     # HEIC 轉換函式庫（本地）
 └── .nojekyll               # 停用 Jekyll，供 GitHub Pages 使用
@@ -112,7 +121,7 @@ my-tools/
 
 ## 特色
 
-- **純前端**：無後端服務，所有運算在瀏覽器本地完成
+- **純前端**：無後端服務，所有運算在瀏覽器本地完成（Regex 使用 JS 引擎）
 - **隱私安全**：檔案與金鑰不會離開裝置
 - **模組化**：每個工具獨立載入，切換工具不重新載入已快取模組
 - **RWD**：桌面 Sidebar + 手機下拉選單，自適應不同裝置
