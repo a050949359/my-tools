@@ -17,6 +17,13 @@ const TOOL_GROUPS = [
     ]
   },
   {
+    label: '行動裝置',
+    icon: '📱',
+    tools: [
+      { id: 'sensor', label: '感測器監控', src: './tools/sensor.js' },
+    ]
+  },
+  {
     label: '開發者工具',
     icon: '</>',
     tools: [
