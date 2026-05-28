@@ -349,6 +349,89 @@ export async function init() {
     }
   });
 
+  // ── 8. MICROPHONE ────────────────────────────────────────
+  makeCard({ id: 'mic', title: 'MICROPHONE', sub: 'Web Audio API · getUserMedia',
+    fields: [
+      { l: '取樣率 (Hz)', k: 'sr'   },
+      { l: 'RMS (dBFS)',  k: 'rms'  },
+      { l: '峰值頻率 (Hz)', k: 'pk' },
+      { l: '峰值 (dBFS)', k: 'pkdb' },
+    ] });
+  const micBufs = [new Ring()];
+  reg('mic', micBufs, -1, 1);
+
+  let micStream = null, micCtx = null, micAnalyser = null;
+  let micRaf = null, micFftRaf = null;
+  const micFftSize = 2048;
+
+  function micOscLoop() {
+    micRaf = requestAnimationFrame(micOscLoop);
+    if (!micAnalyser) return;
+    const buf = new Float32Array(micAnalyser.fftSize);
+    micAnalyser.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    const db  = rms > 1e-9 ? 20 * Math.log10(rms) : -100;
+    setVal('mic', 'rms', db, 1);
+
+    const cv = document.getElementById('scv-mic');
+    if (!cv) return;
+    const W = cv.offsetWidth, H = cv.offsetHeight;
+    cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#111'; cx.fillRect(0, 0, W, H);
+    cx.strokeStyle = '#1e1e1e'; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(0, H/2); cx.lineTo(W, H/2); cx.stroke();
+    cx.strokeStyle = 'rgba(126,247,192,0.7)'; cx.lineWidth = 1.2;
+    cx.beginPath();
+    const step = W / buf.length;
+    for (let i = 0; i < buf.length; i++) {
+      const x = i * step, y = (1 - (buf[i] + 1) / 2) * H;
+      i === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y);
+    }
+    cx.stroke();
+  }
+
+  let micLastFft = 0;
+  function micFftLoop() {
+    micFftRaf = requestAnimationFrame(micFftLoop);
+    if (!micAnalyser || !micCtx) return;
+    const now = performance.now();
+    if (now - micLastFft < 100) return;
+    micLastFft = now;
+    const freq = new Float32Array(micAnalyser.frequencyBinCount);
+    micAnalyser.getFloatFrequencyData(freq);
+    let pk = 0;
+    for (let i = 1; i < freq.length; i++) if (freq[i] > freq[pk]) pk = i;
+    const hz = pk * micCtx.sampleRate / micFftSize;
+    setVal('mic', 'pk',   hz,       1);
+    setVal('mic', 'pkdb', freq[pk], 1);
+  }
+
+  document.getElementById('stog-mic').addEventListener('change', async e => {
+    if (e.target.checked) {
+      if (!navigator.mediaDevices?.getUserMedia) { setStatus('mic','✗ 不支援',false); e.target.checked=false; return; }
+      try {
+        micStream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        micCtx      = new (window.AudioContext || window.webkitAudioContext)();
+        micAnalyser = micCtx.createAnalyser();
+        micAnalyser.fftSize = micFftSize;
+        micAnalyser.smoothingTimeConstant = 0.8;
+        micCtx.createMediaStreamSource(micStream).connect(micAnalyser);
+        setVal('mic', 'sr', micCtx.sampleRate, 0);
+        setStatus('mic','✓ 運作中',true);
+        micOscLoop(); micFftLoop();
+      } catch(err) { setStatus('mic','✗ '+err.message,false); e.target.checked=false; }
+    } else {
+      cancelAnimationFrame(micRaf); cancelAnimationFrame(micFftRaf);
+      micStream?.getTracks().forEach(t => t.stop());
+      micCtx?.close();
+      micCtx = micAnalyser = micStream = null;
+      setStatus('mic','— 已停止',null);
+    }
+  });
+
   startRaf();
 
   return function cleanup() {
@@ -360,5 +443,8 @@ export async function init() {
     magSensor?.stop();
     lightSensor?.stop();
     if (gpsWatch != null) { navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; }
+    cancelAnimationFrame(micRaf); cancelAnimationFrame(micFftRaf);
+    micCtx?.close();
+    micStream?.getTracks().forEach(t => t.stop());
   };
 }
