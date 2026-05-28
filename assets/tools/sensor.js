@@ -412,6 +412,16 @@ export async function init() {
   document.getElementById('stog-mic').addEventListener('change', async e => {
     if (e.target.checked) {
       if (!navigator.mediaDevices?.getUserMedia) { setStatus('mic','✗ 不支援',false); e.target.checked=false; return; }
+      if (navigator.permissions) {
+        try {
+          const ps = await navigator.permissions.query({ name: 'microphone' });
+          if (ps.state === 'denied') {
+            setStatus('mic','✗ 已拒絕授權，請至瀏覽器設定開啟',false);
+            e.target.checked = false; return;
+          }
+          if (ps.state === 'prompt') setStatus('mic','⌛ 等待授權…',null);
+        } catch {}
+      }
       try {
         micStream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         micCtx      = new (window.AudioContext || window.webkitAudioContext)();
@@ -422,7 +432,10 @@ export async function init() {
         setVal('mic', 'sr', micCtx.sampleRate, 0);
         setStatus('mic','✓ 運作中',true);
         micOscLoop(); micFftLoop();
-      } catch(err) { setStatus('mic','✗ '+err.message,false); e.target.checked=false; }
+      } catch(err) {
+        const msg = err.name === 'NotAllowedError' ? '✗ 拒絕授權' : '✗ ' + err.message;
+        setStatus('mic', msg, false); e.target.checked = false;
+      }
     } else {
       cancelAnimationFrame(micRaf); cancelAnimationFrame(micFftRaf);
       micStream?.getTracks().forEach(t => t.stop());
