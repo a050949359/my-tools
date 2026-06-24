@@ -30,8 +30,9 @@ const TOOL_GROUPS = [
       { id: 'qr',    label: 'QR Code 生成',   src: './tools/qr.js'    },
       { id: 'rsa',   label: 'RSA 金鑰產生器', src: './tools/rsa.js'   },
       { id: 'url',   label: 'URL 解析',        src: './tools/url.js'   },
-      { id: 'json',  label: 'JSON 格式化',     src: './tools/json.js'  },
-      { id: 'regex', label: 'Regex 測試器',    src: './tools/regex.js' },
+      { id: 'json',     label: 'JSON 格式化',     src: './tools/json.js'     },
+      { id: 'regex',    label: 'Regex 測試器',    src: './tools/regex.js'    },
+      { id: 'markdown', label: 'Markdown 預覽',   src: './tools/markdown.js' },
     ]
   },
 ];
