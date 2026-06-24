@@ -69,9 +69,8 @@ function loadLib() {
 // allowDataImage：圖片可額外放行 data:image/*（base64 內嵌圖，<img> 不會執行）
 function safeHref(href, allowDataImage) {
   if (!href) return href;
-  const ta = document.createElement('textarea');
-  ta.innerHTML = href;                                  // 還原 &colon; / &#58; 等實體
-  const decoded = ta.value.replace(new RegExp('[\\u0000-\\u0020]+', 'g'), '').toLowerCase();
+  const doc = new DOMParser().parseFromString(href, 'text/html');   // 安全解碼 HTML 實體（不執行 script）
+  const decoded = (doc.body.textContent || '').replace(new RegExp('[\\u0000-\\u0020]+', 'g'), '').toLowerCase();
   const m = decoded.match(/^([a-z][a-z0-9+.-]*):/);     // 取出協定（無協定 = 相對/錨點，放行）
   if (!m) return href;
   if (['http', 'https', 'mailto', 'tel'].includes(m[1])) return href;
@@ -99,7 +98,26 @@ function configure() {
 
 function parse(src) {
   if (!src || !src.trim()) return '';
+  if (typeof marked === 'undefined') return '<p style="color:var(--primary)">Markdown 函式庫未載入</p>';
   return marked.parse(src, { gfm: true, breaks: false });
+}
+
+// 複製文字：優先 Clipboard API，非安全上下文退回 execCommand
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((res, rej) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); res(); }
+    catch (e) { rej(e); }
+    finally { document.body.removeChild(ta); }
+  });
 }
 
 export function template() {
@@ -147,7 +165,11 @@ export async function init() {
 
   const render = () => { preview.innerHTML = parse(input.value); };
 
-  input.addEventListener('input', render);
+  let debounceTimer;
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(render, 120);
+  });
 
   document.getElementById('mdSample').addEventListener('click', () => {
     input.value = SAMPLE; render();
@@ -160,7 +182,7 @@ export async function init() {
   document.getElementById('mdCopyHtml').addEventListener('click', () => {
     const html = parse(input.value);
     if (!html) return;
-    navigator.clipboard.writeText(html).then(() => setStatus('已複製 HTML'));
+    copyText(html).then(() => setStatus('已複製 HTML')).catch(() => setStatus('複製失敗', true));
   });
 
   // 拖曳 .md 檔載入
@@ -172,6 +194,7 @@ export async function init() {
   panel.addEventListener('drop', e => {
     const file = e.dataTransfer.files[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setStatus('檔案過大（上限 5MB）', true); return; }
     const reader = new FileReader();
     reader.onload = () => { input.value = reader.result; render(); setStatus('已載入 ' + file.name); };
     reader.readAsText(file);
