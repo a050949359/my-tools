@@ -54,6 +54,8 @@ function hello(name) {
 `;
 
 let _configured = false;
+const docParser = new DOMParser();                              // 重用，避免每次解析都新建
+const controlCharsRegex = new RegExp('[\\u0000-\\u0020]+', 'g'); // 控制字元 + 空白
 
 function loadLib() {
   if (typeof marked !== 'undefined') return Promise.resolve().then(configure);
@@ -69,8 +71,8 @@ function loadLib() {
 // allowDataImage：圖片可額外放行 data:image/*（base64 內嵌圖，<img> 不會執行）
 function safeHref(href, allowDataImage) {
   if (!href) return href;
-  const doc = new DOMParser().parseFromString(href, 'text/html');   // 安全解碼 HTML 實體（不執行 script）
-  const decoded = (doc.body.textContent || '').replace(new RegExp('[\\u0000-\\u0020]+', 'g'), '').toLowerCase();
+  const doc = docParser.parseFromString(href, 'text/html');   // 安全解碼 HTML 實體（不執行 script）
+  const decoded = (doc.body.textContent || '').replace(controlCharsRegex, '').toLowerCase();
   const m = decoded.match(/^([a-z][a-z0-9+.-]*):/);     // 取出協定（無協定 = 相對/錨點，放行）
   if (!m) return href;
   if (['http', 'https', 'mailto', 'tel'].includes(m[1])) return href;
@@ -99,7 +101,12 @@ function configure() {
 function parse(src) {
   if (!src || !src.trim()) return '';
   if (typeof marked === 'undefined') return '<p style="color:var(--primary)">Markdown 函式庫未載入</p>';
-  return marked.parse(src, { gfm: true, breaks: false });
+  try {
+    return marked.parse(src, { gfm: true, breaks: false });
+  } catch (e) {
+    console.error('Markdown parse error:', e);
+    return '<p style="color:var(--primary)">Markdown 解析出錯</p>';
+  }
 }
 
 // 複製文字：優先 Clipboard API，非安全上下文退回 execCommand
@@ -159,9 +166,12 @@ export async function init() {
   try {
     await loadLib();
   } catch {
-    setStatus('Markdown 函式庫載入失敗', true);
+    if (input && input.isConnected) setStatus('Markdown 函式庫載入失敗', true);
     return;
   }
+
+  // 載入期間若使用者已切換工具，DOM 已抽換，直接中斷避免在卸載節點上綁事件
+  if (!input || !input.isConnected) return;
 
   const render = () => { preview.innerHTML = parse(input.value); };
 
@@ -194,6 +204,11 @@ export async function init() {
   panel.addEventListener('drop', e => {
     const file = e.dataTransfer.files[0];
     if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['md', 'markdown', 'txt'].includes(ext) && !file.type.startsWith('text/')) {
+      setStatus('不支援的檔案格式，請拖曳 .md / .markdown / .txt', true);
+      return;
+    }
     if (file.size > 5 * 1024 * 1024) { setStatus('檔案過大（上限 5MB）', true); return; }
     const reader = new FileReader();
     reader.onload = () => { input.value = reader.result; render(); setStatus('已載入 ' + file.name); };
