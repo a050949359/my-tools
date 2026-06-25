@@ -244,8 +244,9 @@ function configure() {
         name: 'mathInline', level: 'inline',
         start(src) { const i = src.indexOf('$'); return i < 0 ? undefined : i; },
         tokenizer(src) {
-          // 開頭/結尾不可緊鄰空白，降低 "$5 ... $10" 之類貨幣誤判
-          const m = /^\$(?!\s)([^$\n]*?)(?<!\s)\$/.exec(src);
+          // 開頭/結尾不可緊鄰空白，降低 "$5 ... $10" 之類貨幣誤判；
+          // 內容至少一字元（+?）避免相鄰 $$ 被當成空公式而拆壞 $$...$$；允許公式內 \$ 轉義
+          const m = /^\$(?!\s)((?:\\\$|[^$\n])+?)(?<!\s)\$/.exec(src);
           if (m) return { type: 'mathInline', raw: m[0], text: m[1] };
         },
         renderer(t) { return `<span class="md-math" data-display="0">${escapeHtml(t.text)}</span>`; }
