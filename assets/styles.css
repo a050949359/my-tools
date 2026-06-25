@@ -664,7 +664,10 @@ mark.json-mark-cur {
 @media (min-width: 641px) {
   .content-pane:has(#mdShell)        { display: flex; flex-direction: column; min-height: 0; }
   .content-pane:has(#mdShell) > .tool { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-  #mdShell { flex: 1; min-height: 240px; height: auto; }
+  /* grid 列高鎖在容器內（minmax 0），內容改在面板內捲動，整頁不再被撐長 */
+  #mdShell { flex: 1; min-height: 240px; height: auto; grid-template-rows: minmax(0, 1fr); }
+  /* grid 項目預設 min-height:auto 會被內容撐高，改 0 才能讓 output-wrap 內捲 */
+  #mdShell > .json-panel { min-height: 0; }
 }
 
 /* 檢視切換：只顯示原始 / 只顯示預覽 */
