@@ -331,11 +331,11 @@ export function template() {
             <button class="btn-ghost" id="mdCopyHtml">複製 HTML</button>
           </div>
         </div>
+        <div class="md-toc-float">
+          <button class="btn-ghost md-toc-btn" id="mdToc" disabled>☰ 目錄</button>
+          <div class="md-toc-pop" id="mdTocPop" hidden></div>
+        </div>
         <div class="json-output-wrap">
-          <div class="md-toc-float">
-            <button class="btn-ghost md-toc-btn" id="mdToc" disabled>☰ 目錄</button>
-            <div class="md-toc-pop" id="mdTocPop" hidden></div>
-          </div>
           <div class="md-preview" id="mdPreview"></div>
         </div>
       </div>
