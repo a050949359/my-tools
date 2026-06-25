@@ -44,6 +44,16 @@ function hello(name) {
 | id   | int  | 右   |
 | name | text | 右   |
 
+## 圖表（Mermaid）
+
+\`\`\`mermaid
+flowchart LR
+  A[開始] --> B{條件?}
+  B -- 是 --> C[執行]
+  B -- 否 --> D[結束]
+  C --> D
+\`\`\`
+
 ## 圖片與分隔線
 
 ![placeholder](https://placehold.co/120x40)
@@ -57,6 +67,11 @@ let _configured = false;
 const docParser = new DOMParser();                              // 重用，避免每次解析都新建
 const controlCharsRegex = new RegExp('[\\u0000-\\u0020]+', 'g'); // 控制字元 + 空白
 
+// HTML 文字跳脫（供 code 區塊、原始 HTML 轉純文字共用）
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function loadLib() {
   if (typeof marked !== 'undefined') return Promise.resolve().then(configure);
   return new Promise((res, rej) => {
@@ -65,6 +80,55 @@ function loadLib() {
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   }).then(configure);
+}
+
+// Mermaid 延遲載入（僅在文件含 ```mermaid 區塊時才注入，~3MB）
+let _mermaidLoading = null;
+let _mermaidInited = false;
+let mermaidIdSeq = 0;
+function loadMermaid() {
+  if (typeof mermaid !== 'undefined') return Promise.resolve();
+  if (_mermaidLoading) return _mermaidLoading;
+  _mermaidLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'assets/mermaid.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  return _mermaidLoading;
+}
+
+// 將預覽區內的 .md-mermaid 區塊逐一渲染成 SVG；語法錯誤時退回顯示原始碼
+async function renderMermaid(blocks) {
+  try {
+    await loadMermaid();
+  } catch {
+    blocks.forEach(b => mermaidError(b, b.textContent, '圖表函式庫載入失敗'));
+    return;
+  }
+  if (typeof mermaid === 'undefined') return;
+  if (!_mermaidInited) {
+    _mermaidInited = true;
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
+  }
+  for (const block of blocks) {
+    if (!block.isConnected) continue;           // 已被新一輪渲染抽換，略過
+    const src = block.textContent;
+    try {
+      const { svg } = await mermaid.render('mmd-' + (mermaidIdSeq++), src);
+      if (block.isConnected) { block.innerHTML = svg; block.classList.add('md-mermaid-done'); }
+    } catch {
+      if (block.isConnected) mermaidError(block, src, 'Mermaid 圖表語法錯誤');
+    }
+  }
+}
+
+function mermaidError(block, src, msg) {
+  block.classList.add('md-mermaid-error');
+  block.textContent = '⚠ ' + msg;
+  const pre = document.createElement('pre');
+  pre.textContent = src;                         // textContent 安全，不會注入 HTML
+  block.appendChild(pre);
 }
 
 // 解碼 HTML 實體 + 去控制字元後，以白名單檢查協定；不安全則改為 #
@@ -92,7 +156,14 @@ function configure() {
     renderer: {
       html(t) {
         const raw = typeof t === 'string' ? t : t.text;
-        return raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return escapeHtml(raw);
+      },
+      // 攔截 ```mermaid 區塊：保留原始碼（跳脫後放入 div），稍後由 renderMermaid() 畫成 SVG
+      code(code, infostring) {
+        const lang = (infostring || '').match(/^\S*/)?.[0] || '';
+        if (lang === 'mermaid') return `<div class="md-mermaid">${escapeHtml(code)}</div>`;
+        const cls = lang ? ` class="language-${escapeHtml(lang)}"` : '';
+        return `<pre><code${cls}>${escapeHtml(code)}</code></pre>\n`;
       }
     }
   });
@@ -180,7 +251,11 @@ export async function init() {
   // 載入期間若使用者已切換工具，DOM 已抽換，直接中斷避免在卸載節點上綁事件
   if (!input || !input.isConnected) return;
 
-  const render = () => { preview.innerHTML = parse(input.value); };
+  const render = () => {
+    preview.innerHTML = parse(input.value);
+    const blocks = preview.querySelectorAll('.md-mermaid');
+    if (blocks.length) renderMermaid(blocks);
+  };
 
   let debounceTimer;
   input.addEventListener('input', () => {
