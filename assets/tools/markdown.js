@@ -54,6 +54,12 @@ flowchart LR
   C --> D
 \`\`\`
 
+## 數學公式（KaTeX）
+
+行內公式 $E = mc^2$，質能等價；獨立公式：
+
+$$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$
+
 ## 圖片與分隔線
 
 ![placeholder](https://placehold.co/120x40)
@@ -131,6 +137,80 @@ function mermaidError(block, src, msg) {
   block.appendChild(pre);
 }
 
+// 共用：注入 <script> / <link>（同一資源只注入一次）
+function injectScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+function injectCss(href) {
+  if (document.querySelector(`link[data-md-lib="${href}"]`)) return;
+  const l = document.createElement('link');
+  l.rel = 'stylesheet'; l.href = href; l.dataset.mdLib = href;
+  document.head.appendChild(l);
+}
+
+// KaTeX 數學公式：延遲載入，渲染預覽區內的 .md-math
+let _katexLoading = null;
+function loadKatex() {
+  if (typeof katex !== 'undefined') return Promise.resolve();
+  if (_katexLoading) return _katexLoading;
+  injectCss('assets/katex/katex.min.css');
+  _katexLoading = injectScript('assets/katex/katex.min.js');
+  return _katexLoading;
+}
+async function renderMath(root) {
+  const els = root.querySelectorAll('.md-math');
+  if (!els.length) return;
+  try { await loadKatex(); }
+  catch { els.forEach(e => { e.classList.add('md-math-error'); }); return; }
+  if (typeof katex === 'undefined') return;
+  els.forEach(el => {
+    if (el.dataset.done || !el.isConnected) return;
+    try {
+      katex.render(el.textContent, el, { displayMode: el.dataset.display === '1', throwOnError: false });
+      el.dataset.done = '1';
+    } catch { el.classList.add('md-math-error'); }
+  });
+}
+
+// highlight.js 程式碼語法高亮：延遲載入
+let _hljsLoading = null;
+function loadHljs() {
+  if (typeof hljs !== 'undefined') return Promise.resolve();
+  if (_hljsLoading) return _hljsLoading;
+  injectCss('assets/highlight-github.min.css');
+  _hljsLoading = injectScript('assets/highlight.min.js');
+  return _hljsLoading;
+}
+async function highlightCode(root) {
+  const blocks = root.querySelectorAll('pre code');
+  if (!blocks.length) return;
+  try { await loadHljs(); }
+  catch { return; }
+  if (typeof hljs === 'undefined') return;
+  blocks.forEach(b => { if (b.isConnected && !b.dataset.highlighted) { try { hljs.highlightElement(b); } catch {} } });
+}
+
+// 由預覽結果產生目錄（掃描 h1~h4，逐一指定 id）
+function buildToc(root, tocPop, tocBtn) {
+  const headings = root.querySelectorAll('h1, h2, h3, h4');
+  if (!headings.length) {
+    tocPop.innerHTML = ''; tocPop.hidden = true; tocBtn.disabled = true;
+    return;
+  }
+  tocBtn.disabled = false;
+  let html = '';
+  headings.forEach((h, i) => {
+    h.id = 'md-h-' + i;
+    const lvl = +h.tagName[1];
+    html += `<div class="md-toc-item md-toc-l${lvl}" data-target="md-h-${i}">${escapeHtml(h.textContent)}</div>`;
+  });
+  tocPop.innerHTML = html;
+}
+
 // 解碼 HTML 實體 + 去控制字元後，以白名單檢查協定；不安全則改為 #
 // allowDataImage：圖片可額外放行 data:image/*（base64 內嵌圖，<img> 不會執行）
 function safeHref(href, allowDataImage) {
@@ -149,6 +229,27 @@ function configure() {
   if (_configured) return;
   _configured = true;
   marked.use({
+    extensions: [
+      {
+        name: 'mathBlock', level: 'block',
+        start(src) { const i = src.indexOf('$$'); return i < 0 ? undefined : i; },
+        tokenizer(src) {
+          const m = /^\$\$([\s\S]+?)\$\$/.exec(src);
+          if (m) return { type: 'mathBlock', raw: m[0], text: m[1].trim() };
+        },
+        renderer(t) { return `<div class="md-math" data-display="1">${escapeHtml(t.text)}</div>`; }
+      },
+      {
+        name: 'mathInline', level: 'inline',
+        start(src) { const i = src.indexOf('$'); return i < 0 ? undefined : i; },
+        tokenizer(src) {
+          // 開頭/結尾不可緊鄰空白，降低 "$5 ... $10" 之類貨幣誤判
+          const m = /^\$(?!\s)([^$\n]*?)(?<!\s)\$/.exec(src);
+          if (m) return { type: 'mathInline', raw: m[0], text: m[1] };
+        },
+        renderer(t) { return `<span class="md-math" data-display="0">${escapeHtml(t.text)}</span>`; }
+      }
+    ],
     walkTokens(t) {
       if (t.type === 'link') t.href = safeHref(t.href, false);
       else if (t.type === 'image') t.href = safeHref(t.href, true);
@@ -223,9 +324,11 @@ export function template() {
         <div class="json-panel-header">
           <span>預覽</span>
           <div class="button-row" style="gap:6px;margin:0;">
+            <button class="btn-ghost" id="mdToc" disabled>目錄</button>
             <button class="btn-ghost" id="mdCopyHtml">複製 HTML</button>
           </div>
         </div>
+        <div class="md-toc-pop" id="mdTocPop" hidden></div>
         <div class="json-output-wrap">
           <div class="md-preview" id="mdPreview"></div>
         </div>
@@ -251,11 +354,27 @@ export async function init() {
   // 載入期間若使用者已切換工具，DOM 已抽換，直接中斷避免在卸載節點上綁事件
   if (!input || !input.isConnected) return;
 
+  const tocBtn = document.getElementById('mdToc');
+  const tocPop = document.getElementById('mdTocPop');
+
   const render = () => {
     preview.innerHTML = parse(input.value);
+    buildToc(preview, tocPop, tocBtn);
     const blocks = preview.querySelectorAll('.md-mermaid');
     if (blocks.length) renderMermaid(blocks);
+    renderMath(preview);
+    highlightCode(preview);
   };
+
+  // 目錄：開關下拉、點項目捲動到對應標題（用 JS 捲動，避免 #hash 干擾路由）
+  tocBtn.addEventListener('click', () => { tocPop.hidden = !tocPop.hidden; });
+  tocPop.addEventListener('click', e => {
+    const item = e.target.closest('.md-toc-item');
+    if (!item) return;
+    const target = preview.querySelector('#' + CSS.escape(item.dataset.target));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    tocPop.hidden = true;
+  });
 
   let debounceTimer;
   input.addEventListener('input', () => {
@@ -314,7 +433,15 @@ export async function init() {
 
 export function reset() {
   const input = document.getElementById('mdInput');
-  if (input) { input.value = ''; document.getElementById('mdPreview').innerHTML = ''; setStatus(''); }
+  if (input) {
+    input.value = '';
+    document.getElementById('mdPreview').innerHTML = '';
+    const tocPop = document.getElementById('mdTocPop');
+    const tocBtn = document.getElementById('mdToc');
+    if (tocPop) { tocPop.innerHTML = ''; tocPop.hidden = true; }
+    if (tocBtn) tocBtn.disabled = true;
+    setStatus('');
+  }
 }
 
 function setStatus(msg, isError) {
