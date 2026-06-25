@@ -642,6 +642,9 @@ mark.json-mark-cur {
 
 @media (max-width: 640px) {
   .json-shell { grid-template-columns: 1fr; height: auto; }
+  .content-pane:has(#mdShell)        { display: block; }
+  .content-pane:has(#mdShell) > .tool { display: block; flex: none; }
+  #mdShell { flex: none; height: auto; min-height: 0; }
   .json-panel textarea { min-height: 160px; }
 }
 
