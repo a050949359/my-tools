@@ -129,7 +129,14 @@ function copyText(text) {
 
 export function template() {
   return `
-    <p class="muted">即時預覽 Markdown，完整支援 CommonMark + GFM（表格、任務清單、刪除線等）。可拖曳 <code>.md</code> 檔案載入。</p>
+    <div class="md-topbar">
+      <p class="muted" style="margin:0;">即時預覽 Markdown，完整支援 CommonMark + GFM（表格、任務清單、刪除線等）。可拖曳 <code>.md</code> 檔案載入。</p>
+      <div class="json-view-toggle" id="mdViewToggle">
+        <button class="json-view-btn" data-view="left">原始</button>
+        <button class="json-view-btn active" data-view="both">並排</button>
+        <button class="json-view-btn" data-view="right">預覽</button>
+      </div>
+    </div>
     <div class="json-shell" id="mdShell">
       <div class="json-panel">
         <div class="json-panel-header">
@@ -155,11 +162,6 @@ export function template() {
     </div>
     <div class="json-toolbar">
       <span id="mdStatus" class="json-status"></span>
-      <div class="json-view-toggle" id="mdViewToggle" style="margin-left:auto;">
-        <button class="json-view-btn" data-view="left">原始</button>
-        <button class="json-view-btn active" data-view="both">並排</button>
-        <button class="json-view-btn" data-view="right">預覽</button>
-      </div>
     </div>
   `;
 }
