@@ -130,7 +130,7 @@ function copyText(text) {
 export function template() {
   return `
     <p class="muted">即時預覽 Markdown，完整支援 CommonMark + GFM（表格、任務清單、刪除線等）。可拖曳 <code>.md</code> 檔案載入。</p>
-    <div class="json-shell">
+    <div class="json-shell" id="mdShell">
       <div class="json-panel">
         <div class="json-panel-header">
           <span>MARKDOWN</span>
@@ -155,6 +155,11 @@ export function template() {
     </div>
     <div class="json-toolbar">
       <span id="mdStatus" class="json-status"></span>
+      <div class="json-view-toggle" id="mdViewToggle" style="margin-left:auto;">
+        <button class="json-view-btn" data-view="left">原始</button>
+        <button class="json-view-btn active" data-view="both">並排</button>
+        <button class="json-view-btn" data-view="right">預覽</button>
+      </div>
     </div>
   `;
 }
@@ -193,6 +198,18 @@ export async function init() {
     const html = parse(input.value);
     if (!html) return;
     copyText(html).then(() => setStatus('已複製 HTML')).catch(() => setStatus('複製失敗', true));
+  });
+
+  // 檢視切換：原始（只顯示左）/ 並排 / 預覽（只顯示右）
+  const shell = document.getElementById('mdShell');
+  const viewToggle = document.getElementById('mdViewToggle');
+  viewToggle.addEventListener('click', e => {
+    const btn = e.target.closest('.json-view-btn');
+    if (!btn) return;
+    shell.classList.remove('md-view-left', 'md-view-right');
+    if (btn.dataset.view === 'left') shell.classList.add('md-view-left');
+    else if (btn.dataset.view === 'right') shell.classList.add('md-view-right');
+    viewToggle.querySelectorAll('.json-view-btn').forEach(b => b.classList.toggle('active', b === btn));
   });
 
   // 拖曳 .md 檔載入
