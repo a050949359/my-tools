@@ -646,6 +646,12 @@ mark.json-mark-cur {
 }
 
 /* ── Markdown 預覽 ───────────────────────────────────────────────────────── */
+/* 檢視切換：只顯示原始 / 只顯示預覽 */
+.json-shell.md-view-left,
+.json-shell.md-view-right { grid-template-columns: 1fr; }
+.json-shell.md-view-left  .json-panel:last-child  { display: none; }
+.json-shell.md-view-right .json-panel:first-child { display: none; }
+
 .json-panel.md-drag {
   outline: 2px dashed var(--primary);
   outline-offset: -2px;
