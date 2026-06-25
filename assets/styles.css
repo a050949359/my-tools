@@ -805,25 +805,13 @@ mark.json-mark-cur {
 /* highlight.js：維持本工具的 pre 背景與內距（壓過主題注入的 padding/background）*/
 .md-preview pre code.hljs { padding: 0; background: none; }
 
-/* 目錄 (TOC) 下拉 */
-/* 目錄浮動鈕：釘在預覽面板（不捲動的容器）右上角，內容在 output-wrap 內捲動時一直可按 */
-.json-panel:has(.md-toc-float) { position: relative; }
-.md-toc-float {
-  position: absolute;
-  top: 42px;                 /* 標題列高度之下 */
-  right: 12px;
-  z-index: 6;
-}
-.md-toc-btn {
-  margin: 0;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
-  opacity: 0.95;
-}
-.md-toc-btn:hover { opacity: 1; }
+/* 目錄 (TOC) 下拉：目錄鈕在預覽標題列（高度已鎖定，標題列不會被捲走），
+   下拉清單以面板為定位基準從右上角展開 */
+.json-panel:has(.md-toc-pop) { position: relative; }
 .md-toc-pop {
   position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  top: 40px;                 /* 標題列高度之下 */
+  right: 10px;
   z-index: 6;
   width: min(280px, 70vw);
   max-height: 60vh;
