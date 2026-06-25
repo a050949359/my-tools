@@ -659,10 +659,13 @@ mark.json-mark-cur {
   margin-bottom: 12px;
 }
 
-/* Markdown 編輯/預覽框填滿容器高度（content-pane 已含 24px padding）*/
-.content-pane:has(#mdShell)        { display: flex; flex-direction: column; min-height: 0; }
-.content-pane:has(#mdShell) > .tool { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-#mdShell { flex: 1; min-height: 240px; height: auto; }
+/* Markdown 編輯/預覽框填滿容器高度（content-pane 已含 24px padding）；
+   限桌面寬度，避免覆蓋上方 max-width:640px 的行動版單欄排版 */
+@media (min-width: 641px) {
+  .content-pane:has(#mdShell)        { display: flex; flex-direction: column; min-height: 0; }
+  .content-pane:has(#mdShell) > .tool { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #mdShell { flex: 1; min-height: 240px; height: auto; }
+}
 
 /* 檢視切換：只顯示原始 / 只顯示預覽 */
 .json-shell.md-view-left,
@@ -783,11 +786,49 @@ mark.json-mark-cur {
   font-weight: 400;
   color: var(--on-surface);
   background: var(--surface-low);
-  border: 1px solid var(--outline-variant);
+  border: 1px solid var(--outline);
   border-radius: 4px;
   white-space: pre-wrap;
   overflow-x: auto;
 }
+
+/* KaTeX 數學公式 */
+.md-math[data-display="1"] { margin: 0.9em 0; overflow-x: auto; }
+.md-math-error { color: var(--primary); font-family: var(--mono); font-size: 0.88em; }
+
+/* highlight.js：維持本工具的 pre 背景與內距（壓過主題注入的 padding/background）*/
+.md-preview pre code.hljs { padding: 0; background: none; }
+
+/* 目錄 (TOC) 下拉 */
+.json-panel:has(.md-toc-pop) { position: relative; }
+.md-toc-pop {
+  position: absolute;
+  top: 36px;
+  right: 10px;
+  z-index: 5;
+  width: min(280px, 70%);
+  max-height: 60%;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--outline-strong);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.md-toc-item {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md-toc-item:hover { background: var(--surface-container); color: var(--on-surface); }
+.md-toc-l2 { padding-left: 18px; }
+.md-toc-l3 { padding-left: 30px; }
+.md-toc-l4 { padding-left: 42px; }
 
 /* ── URL Table ───────────────────────────────────────────────────────────── */
 .url-table {

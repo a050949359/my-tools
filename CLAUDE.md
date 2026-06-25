@@ -22,7 +22,10 @@ my-tools/
 │   ├── qrcode.min.js       # QR Code 函式庫（本地）
 │   ├── heic2any.min.js     # HEIC 轉換函式庫（本地）
 │   ├── marked.min.js       # Markdown 解析函式庫（本地）
-│   └── mermaid.min.js      # Mermaid 圖表函式庫（本地，~3MB，延遲載入）
+│   ├── mermaid.min.js      # Mermaid 圖表函式庫（本地，~3MB，延遲載入）
+│   ├── katex/              # KaTeX 數學公式（min.js + min.css + fonts/，延遲載入）
+│   ├── highlight.min.js    # highlight.js 程式碼語法高亮（本地，延遲載入）
+│   └── highlight-github.min.css # highlight.js GitHub 主題
 ├── DESIGN.md               # Design Token（色彩、字型、間距）
 └── CLAUDE.md               # 本文件
 ```
@@ -133,7 +136,7 @@ function loadLib() {
 | `svg` | SVG → PNG | 圖片工具 | SVG 轉 PNG，可設尺寸背景 | ✗ | ✓ `#svgConvertBtn` |
 | `heic` | HEIC → PNG | 圖片工具 | HEIC/HEIF 轉 PNG | ✗ | ✓ `#heicConvertBtn` |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` |
-| `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽，marked（CommonMark+GFM），Mermaid 圖表（延遲載入），檢視切換，支援拖曳 `.md` | ✓ | ✗ 自動觸發 |
+| `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 |
 
 ---
 
