@@ -768,6 +768,27 @@ mark.json-mark-cur {
 .md-preview li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.4em; }
 .md-preview li > input[type="checkbox"] { margin-right: 0.5em; }
 
+/* Mermaid 圖表 */
+.md-mermaid { margin: 0.9em 0; text-align: center; overflow-x: auto; }
+.md-mermaid svg { max-width: 100%; height: auto; }
+.md-mermaid-error {
+  text-align: left;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.md-mermaid-error pre {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  font-weight: 400;
+  color: var(--on-surface);
+  background: var(--surface-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 /* ── URL Table ───────────────────────────────────────────────────────────── */
 .url-table {
   width: 100%;
