@@ -328,13 +328,11 @@ export function template() {
         <div class="json-panel-header">
           <span>預覽</span>
           <div class="button-row" style="gap:6px;margin:0;">
+            <button class="btn-ghost" id="mdToc" disabled>目錄</button>
             <button class="btn-ghost" id="mdCopyHtml">複製 HTML</button>
           </div>
         </div>
-        <div class="md-toc-float">
-          <button class="btn-ghost md-toc-btn" id="mdToc" disabled>☰ 目錄</button>
-          <div class="md-toc-pop" id="mdTocPop" hidden></div>
-        </div>
+        <div class="md-toc-pop" id="mdTocPop" hidden></div>
         <div class="json-output-wrap">
           <div class="md-preview" id="mdPreview"></div>
         </div>
