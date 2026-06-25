@@ -76,11 +76,12 @@ const controlCharsRegex = new RegExp('[\\u0000-\\u0020]+', 'g'); // 控制字元
 // HTML 文字跳脫（供 code 區塊、原始 HTML 轉純文字共用）
 // 含引號跳脫，避免插入屬性值（如 class="language-…"）時被跳脫出來造成注入
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;');
 }
 
 function loadLib() {
@@ -205,9 +206,10 @@ function buildToc(root, tocPop, tocBtn) {
   tocBtn.disabled = false;
   let html = '';
   headings.forEach((h, i) => {
-    h.id = 'md-h-' + i;
+    const id = h.id || 'md-h-' + i;           // 保留標題既有 id，避免覆蓋自訂錨點
+    h.id = id;
     const lvl = +h.tagName[1];
-    html += `<div class="md-toc-item md-toc-l${lvl}" data-target="md-h-${i}">${escapeHtml(h.textContent)}</div>`;
+    html += `<div class="md-toc-item md-toc-l${lvl}" data-target="${escapeHtml(id)}">${escapeHtml(h.textContent)}</div>`;
   });
   tocPop.innerHTML = html;
 }
@@ -437,7 +439,8 @@ export function reset() {
   const input = document.getElementById('mdInput');
   if (input) {
     input.value = '';
-    document.getElementById('mdPreview').innerHTML = '';
+    const preview = document.getElementById('mdPreview');
+    if (preview) preview.innerHTML = '';
     const tocPop = document.getElementById('mdTocPop');
     const tocBtn = document.getElementById('mdToc');
     if (tocPop) { tocPop.innerHTML = ''; tocPop.hidden = true; }
