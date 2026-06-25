@@ -74,8 +74,13 @@ const docParser = new DOMParser();                              // 重用，避�
 const controlCharsRegex = new RegExp('[\\u0000-\\u0020]+', 'g'); // 控制字元 + 空白
 
 // HTML 文字跳脫（供 code 區塊、原始 HTML 轉純文字共用）
+// 含引號跳脫，避免插入屬性值（如 class="language-…"）時被跳脫出來造成注入
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
 }
 
 function loadLib() {
@@ -95,12 +100,8 @@ let mermaidIdSeq = 0;
 function loadMermaid() {
   if (typeof mermaid !== 'undefined') return Promise.resolve();
   if (_mermaidLoading) return _mermaidLoading;
-  _mermaidLoading = new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'assets/mermaid.min.js';
-    s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
+  // 載入失敗時清掉快取的 rejected promise，讓下次渲染可重試
+  _mermaidLoading = injectScript('assets/mermaid.min.js').catch(e => { _mermaidLoading = null; throw e; });
   return _mermaidLoading;
 }
 
@@ -158,7 +159,7 @@ function loadKatex() {
   if (typeof katex !== 'undefined') return Promise.resolve();
   if (_katexLoading) return _katexLoading;
   injectCss('assets/katex/katex.min.css');
-  _katexLoading = injectScript('assets/katex/katex.min.js');
+  _katexLoading = injectScript('assets/katex/katex.min.js').catch(e => { _katexLoading = null; throw e; });
   return _katexLoading;
 }
 async function renderMath(root) {
@@ -182,7 +183,7 @@ function loadHljs() {
   if (typeof hljs !== 'undefined') return Promise.resolve();
   if (_hljsLoading) return _hljsLoading;
   injectCss('assets/highlight-github.min.css');
-  _hljsLoading = injectScript('assets/highlight.min.js');
+  _hljsLoading = injectScript('assets/highlight.min.js').catch(e => { _hljsLoading = null; throw e; });
   return _hljsLoading;
 }
 async function highlightCode(root) {

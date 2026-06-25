@@ -642,9 +642,6 @@ mark.json-mark-cur {
 
 @media (max-width: 640px) {
   .json-shell { grid-template-columns: 1fr; height: auto; }
-  .content-pane:has(#mdShell)        { display: block; }
-  .content-pane:has(#mdShell) > .tool { display: block; flex: none; }
-  #mdShell { flex: none; height: auto; min-height: 0; }
   .json-panel textarea { min-height: 160px; }
 }
 
@@ -659,10 +656,13 @@ mark.json-mark-cur {
   margin-bottom: 12px;
 }
 
-/* Markdown 編輯/預覽框填滿容器高度（content-pane 已含 24px padding）*/
-.content-pane:has(#mdShell)        { display: flex; flex-direction: column; min-height: 0; }
-.content-pane:has(#mdShell) > .tool { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-#mdShell { flex: 1; min-height: 240px; height: auto; }
+/* Markdown 編輯/預覽框填滿容器高度（content-pane 已含 24px padding）；
+   限桌面寬度，避免覆蓋上方 max-width:640px 的行動版單欄排版 */
+@media (min-width: 641px) {
+  .content-pane:has(#mdShell)        { display: flex; flex-direction: column; min-height: 0; }
+  .content-pane:has(#mdShell) > .tool { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #mdShell { flex: 1; min-height: 240px; height: auto; }
+}
 
 /* 檢視切換：只顯示原始 / 只顯示預覽 */
 .json-shell.md-view-left,
@@ -783,7 +783,7 @@ mark.json-mark-cur {
   font-weight: 400;
   color: var(--on-surface);
   background: var(--surface-low);
-  border: 1px solid var(--outline-variant);
+  border: 1px solid var(--outline);
   border-radius: 4px;
   white-space: pre-wrap;
   overflow-x: auto;
