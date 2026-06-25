@@ -662,6 +662,9 @@ mark.json-mark-cur {
 /* Markdown 編輯/預覽框填滿容器高度（content-pane 已含 24px padding）；
    限桌面寬度，避免覆蓋上方 max-width:640px 的行動版單欄排版 */
 @media (min-width: 641px) {
+  /* 根容器鎖在視窗高度，整條 flex 鏈才有界線，內容才會在面板內捲而非撐長整頁。
+     用 :has 只在 Markdown 工具生效，其他工具維持 min-height:100vh 可隨內容增長 */
+  .app-shell:has(#mdShell) { height: 100vh; grid-template-rows: minmax(0, 1fr); }
   .content-pane:has(#mdShell)        { display: flex; flex-direction: column; min-height: 0; }
   .content-pane:has(#mdShell) > .tool { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   /* grid 列高鎖在容器內（minmax 0），內容改在面板內捲動，整頁不再被撐長 */
