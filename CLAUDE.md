@@ -135,6 +135,7 @@ function loadLib() {
 | `placeholder` | Placeholder 生成 | 圖片工具 | 即時產生占位圖 | ✗ | ✗ 自動觸發 |
 | `svg` | SVG → PNG | 圖片工具 | SVG 轉 PNG，可設尺寸背景 | ✗ | ✓ `#svgConvertBtn` |
 | `heic` | HEIC → PNG | 圖片工具 | HEIC/HEIF 轉 PNG | ✗ | ✓ `#heicConvertBtn` |
+| `imageBrowser` | 本地圖片瀏覽器 | 圖片工具 | File System Access API 瀏覽本地大量圖片（虛擬牆 + Worker 縮圖）；反解 RPG Maker MV/MZ 加密圖（XOR）；純瀏覽不匯出、防手滑鎖、責任聲明 | ✗ | ✓ `#ibPick` |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` |
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 |
 

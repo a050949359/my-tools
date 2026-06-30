@@ -14,6 +14,7 @@ const TOOL_GROUPS = [
       { id: 'placeholder', label: 'Placeholder 生成', src: './tools/placeholder.js' },
       { id: 'svg',         label: 'SVG → PNG',        src: './tools/svg.js'         },
       { id: 'heic',        label: 'HEIC → PNG',       src: './tools/heic.js'        },
+      { id: 'imageBrowser', label: '本地圖片瀏覽器',  src: './tools/imageBrowser.js' },
     ]
   },
   {
