@@ -38,8 +38,14 @@ export function template() {
   return `
     <style>
       #ibRoot { display:flex; flex-direction:column; gap:.75rem; }
+      #ibRoot .ib-privacy {
+        margin:0; padding:.7rem .9rem; border-radius:10px; font-size:.86rem; line-height:1.7;
+        background:color-mix(in srgb, var(--primary) 12%, var(--surface));
+        border:1.5px solid var(--primary); color:var(--on-surface);
+      }
+      #ibRoot .ib-privacy strong { color:var(--primary); }
       #ibRoot .ib-notice {
-        margin:0; padding:.55rem .8rem; border-radius:8px; font-size:.8rem; line-height:1.6;
+        margin:0; padding:.5rem .8rem; border-radius:8px; font-size:.76rem; line-height:1.6;
         background:var(--surface-low); border:1px solid var(--outline-variant);
         color:var(--on-surface-variant);
       }
@@ -75,10 +81,15 @@ export function template() {
       #ibVhint { position:fixed; bottom:10px; left:0; right:0; text-align:center; font-size:.78rem; color:#888; pointer-events:none; }
     </style>
     <div id="ibRoot">
+      <p class="ib-privacy">
+        🔒 <strong>純讀取、不動你的檔案。</strong>
+        本工具只會把圖片<strong>讀進瀏覽器記憶體</strong>顯示，
+        <strong>不會修改、刪除你的原始檔案，也不會產生任何額外檔案或副本</strong>，
+        更不會上傳到網路。權限視窗請放心按「檢視檔案」，關掉分頁就什麼都不留。
+      </p>
       <p class="ib-notice">
-        ⚠ 僅供瀏覽你<strong>擁有合法授權</strong>的素材（自製遊戲、已購買或引擎內建素材）。
-        本工具純客戶端執行、圖片不離開本機，<strong>不提供匯出或下載</strong>；
-        還原後的素材版權仍屬原作者，請勿擷取、散布或商用。使用本工具產生的任何後果由使用者自行負責。
+        ⚠ 僅供瀏覽你擁有合法授權的素材（自製遊戲、已購買或引擎內建素材）。
+        還原後的素材版權仍屬原作者，請勿擷取、散布或商用；使用本工具產生的任何後果由使用者自行負責。
       </p>
       <div class="ib-bar">
         <button id="ibPick" data-primary>📁 選資料夾</button>
