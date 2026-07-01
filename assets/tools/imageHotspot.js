@@ -323,12 +323,14 @@ function buildExport() {
 
   hotspots.forEach(hs => {
     if (hs.type === 'group') {
-      const paths = hs.ids.map(id => svg.querySelector(`path[data-hs-id="${id}"]`)).filter(Boolean);
-      if (!paths.length) return;
-      const a = doc.createElementNS(SVGNS, 'a');
-      setHref(a, hs.href);
-      paths[0].parentNode.insertBefore(a, paths[0]);   // 在第一條 path 位置插入 <a>
-      paths.forEach(p => a.appendChild(p));            // 把該群 path 移進 <a>
+      // 每條 path 各自包一個 <a>（同一 href）:保留原本 DOM 順序/樣式/堆疊,
+      // 避免把跨父層或交錯的 path 集中搬進單一 <a> 而破壞渲染。點擊行為完全相同。
+      hs.ids.map(id => svg.querySelector(`path[data-hs-id="${id}"]`)).filter(Boolean).forEach(p => {
+        const a = doc.createElementNS(SVGNS, 'a');
+        setHref(a, hs.href);
+        p.parentNode.insertBefore(a, p);
+        a.appendChild(p);
+      });
     } else {
       const a = doc.createElementNS(SVGNS, 'a');
       setHref(a, hs.href);
@@ -375,6 +377,7 @@ function copySVG() {
 function setStatus(msg) { const el = $('hsStatus'); if (el) el.textContent = msg; }
 
 export function reset() {
+  if (stageOff) { stageOff(); stageOff = null; }   // 解除全域拖曳監聽
   baseSVG = ''; svgEl = null; selected = new Set(); hotspots = []; mode = 'path';
   if ($('hsInput')) $('hsInput').value = '';
   if ($('hsEditor')) $('hsEditor').hidden = true;

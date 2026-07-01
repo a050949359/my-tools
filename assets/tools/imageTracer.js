@@ -155,8 +155,13 @@ export function init() {
   $('itCopy').addEventListener('click', copy);
   $('itToHotspot').addEventListener('click', () => {
     if (!lastSVG) { alert('請先描邊產生 SVG'); return; }
-    sessionStorage.setItem('hs-handoff-svg', lastSVG);   // 交接給互動熱區工具
-    location.hash = 'imageHotspot';
+    try {
+      sessionStorage.setItem('hs-handoff-svg', lastSVG);   // 交接給互動熱區工具
+      location.hash = 'imageHotspot';
+    } catch (e) {
+      console.error(e);
+      alert('SVG 太大,無法透過瀏覽器暫存交接,請改用「複製 SVG 原始碼」到熱區工具貼上。');
+    }
   });
 
   async function convert() {
