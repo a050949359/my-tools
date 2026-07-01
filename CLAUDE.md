@@ -138,7 +138,7 @@ function loadLib() {
 | `heic` | HEIC → PNG | 圖片工具 | HEIC/HEIF 轉 PNG | ✗ | ✓ `#heicConvertBtn` |
 | `imageBrowser` | 本地圖片瀏覽器 | 圖片工具 | File System Access API 瀏覽本地大量圖片（虛擬牆 + Worker 縮圖）；反解 RPG Maker MV/MZ 加密圖（XOR）；純瀏覽不匯出、防手滑鎖、責任聲明 | ✗ | ✓ `#ibPick` |
 | `imageTracer` | 圖片 → SVG 描邊 | 圖片工具 | ImageTracer.js（本地、延遲載入）點陣圖向量化成 SVG；預設風格 + 色數/去躁/模糊滑桿、原圖對照、路徑數統計、下載/複製；可「→ 加互動連結」交接給熱區工具 | ✓ | ✓ `#itRunBtn` |
-| `imageHotspot` | SVG 互動熱區 | 圖片工具 | 貼上/上傳/交接 SVG，在圖上點選或框選一群 path、或拉矩形熱區，綁超連結 href；匯出把 path 群包進 `<a>`、矩形熱區加透明 `<rect>`；透明可點不填滿 | ✓ | ✓ `#hsLoad` |
+| `imageHotspot` | SVG 互動熱區 | 圖片工具 | 貼上/上傳/交接 SVG，在圖上點選或框選一群 path、或拉矩形熱區，綁超連結 href；兩種匯出:①描邊版(path 包 `<a>`)②原圖內嵌版(原圖 `<image>` 當底+path 群轉外框 rect，原圖清晰);透明可點不填滿、`rel=noopener` | ✓ | ✓ `#hsLoad` |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` |
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 |
 
