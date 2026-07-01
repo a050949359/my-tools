@@ -18,6 +18,18 @@ function loadLib() {
   });
 }
 
+// 保留 width/height（預設尺寸）再補 viewBox（可縮放、預覽與原圖一致、便於疊圖對齊）
+function addViewBox(svgStr) {
+  const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
+  const svg = doc.querySelector('svg');
+  if (!svg || doc.querySelector('parsererror')) return svgStr;   // 解析失敗就原樣回傳
+  if (!svg.getAttribute('viewBox')) {
+    const w = parseFloat(svg.getAttribute('width')), h = parseFloat(svg.getAttribute('height'));
+    if (w > 0 && h > 0) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  }
+  return new XMLSerializer().serializeToString(svg);
+}
+
 export function template() {
   return `
     <style>
@@ -79,6 +91,7 @@ export function template() {
         <div class="button-row" style="margin-top:.8rem;">
           <button id="itDownload">下載 SVG</button>
           <button id="itCopy">複製 SVG 原始碼</button>
+          <button id="itToHotspot" class="btn-ghost">→ 加互動連結</button>
         </div>
       </div>
     </div>
@@ -140,6 +153,11 @@ export function init() {
   $('itRunBtn').addEventListener('click', convert);
   $('itDownload').addEventListener('click', download);
   $('itCopy').addEventListener('click', copy);
+  $('itToHotspot').addEventListener('click', () => {
+    if (!lastSVG) { alert('請先描邊產生 SVG'); return; }
+    sessionStorage.setItem('hs-handoff-svg', lastSVG);   // 交接給互動熱區工具
+    location.hash = 'imageHotspot';
+  });
 
   async function convert() {
     if (!srcImageData) { alert('請先上傳圖片'); return; }
@@ -159,7 +177,7 @@ export function init() {
       const td = ImageTracer.imagedataToTracedata(srcImageData, options);
       // 傳同一份 options 給 getsvgstring:內部會 checkoptions() 解析字串預設並補預設值，
       // 才能套用預設風格的 SVG 渲染參數（strokewidth 等）；td 本身不帶 options。
-      lastSVG = ImageTracer.getsvgstring(td, options);
+      lastSVG = addViewBox(ImageTracer.getsvgstring(td, options));
 
       const paths = (lastSVG.match(/<path/g) || []).length;
       const layers = td.layers ? td.layers.length : 0;

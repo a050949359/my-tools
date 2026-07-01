@@ -16,6 +16,7 @@ const TOOL_GROUPS = [
       { id: 'heic',        label: 'HEIC → PNG',       src: './tools/heic.js'        },
       { id: 'imageBrowser', label: '本地圖片瀏覽器',  src: './tools/imageBrowser.js' },
       { id: 'imageTracer',  label: '圖片 → SVG 描邊', src: './tools/imageTracer.js'  },
+      { id: 'imageHotspot', label: 'SVG 互動熱區',    src: './tools/imageHotspot.js' },
     ]
   },
   {
