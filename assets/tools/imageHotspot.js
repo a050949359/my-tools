@@ -348,7 +348,10 @@ function buildExport() {
 function setHref(a, href) {
   a.setAttribute('href', href);
   a.setAttributeNS(XLINKNS, 'xlink:href', href);       // 舊瀏覽器相容
-  if (/^https?:/i.test(href)) a.setAttribute('target', '_blank');
+  if (/^https?:/i.test(href)) {
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer');      // 防 reverse tabnabbing
+  }
 }
 
 function exportSVG() {
