@@ -6,6 +6,7 @@ const PRESETS = ['default', 'posterized2', 'detailed', 'smoothed', 'grayscale', 
 
 let lastSVG = '';              // 供下載 / 複製
 let srcImageData = null;       // 目前載入圖的 ImageData
+let srcDataURL = '';           // 原圖 dataURL（交接給熱區工具做「原圖內嵌版」）
 let downscaled = false;
 
 function loadLib() {
@@ -141,6 +142,7 @@ export function init() {
         const ctx = cv.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(img, 0, 0, w, h);
         srcImageData = ctx.getImageData(0, 0, w, h);
+        srcDataURL = reader.result;
         $('itOrig').src = reader.result;
         $('itDropMsg').textContent = `已載入：${file.name}（${img.width}×${img.height}${downscaled ? ` → 縮至 ${w}×${h}` : ''}）`;
       };
@@ -156,11 +158,13 @@ export function init() {
   $('itToHotspot').addEventListener('click', () => {
     if (!lastSVG) { alert('請先描邊產生 SVG'); return; }
     try {
-      sessionStorage.setItem('hs-handoff-svg', lastSVG);   // 交接給互動熱區工具
+      sessionStorage.setItem('hs-handoff-svg', lastSVG);            // 描邊 SVG(編輯用)
+      sessionStorage.setItem('hs-handoff-img', srcDataURL || '');   // 原圖(原圖內嵌版用)
       location.hash = 'imageHotspot';
     } catch (e) {
       console.error(e);
-      alert('SVG 太大,無法透過瀏覽器暫存交接,請改用「複製 SVG 原始碼」到熱區工具貼上。');
+      sessionStorage.removeItem('hs-handoff-svg'); sessionStorage.removeItem('hs-handoff-img');
+      alert('圖太大,無法透過瀏覽器暫存交接,請改用「複製 SVG 原始碼」到熱區工具貼上(原圖內嵌版則需另存)。');
     }
   });
 
@@ -220,7 +224,7 @@ export function init() {
 
 export function reset() {
   const $ = id => document.getElementById(id);
-  lastSVG = ''; srcImageData = null;
+  lastSVG = ''; srcImageData = null; srcDataURL = '';
   if ($('itResult')) $('itResult').hidden = true;
   if ($('itSvgBox')) $('itSvgBox').innerHTML = '';
   if ($('itOrig')) $('itOrig').src = '';

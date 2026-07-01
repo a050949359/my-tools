@@ -11,6 +11,7 @@ let mode = 'path';       // 'path' | 'rect'
 let selected = new Set();// 目前選取的 path id
 let hotspots = [];       // {type:'group', ids:[...], href} | {type:'rect', x,y,w,h, href}
 let hsSeq = 0;
+let origImg = '';        // 交接過來的原圖 dataURL（原圖內嵌版用）
 
 const $ = id => document.getElementById(id);
 
@@ -80,19 +81,23 @@ export function template() {
         <div id="hsList"></div>
 
         <div class="button-row" style="margin-top:.4rem;">
-          <button id="hsExport">匯出互動 SVG</button>
-          <button id="hsCopy">複製原始碼</button>
+          <button id="hsExport">匯出描邊版</button>
+          <button id="hsExportImg">匯出原圖內嵌版</button>
+          <button id="hsCopy" class="btn-ghost">複製描邊版原始碼</button>
         </div>
+        <p class="muted" style="margin:.2rem 0 0;">描邊版:path 包 `&lt;a&gt;` 的純向量成品。原圖內嵌版:原圖清晰顯示,path 群自動轉外框熱區(需從描邊工具交接原圖)。</p>
       </div>
     </div>
   `;
 }
 
 export function init() {
-  baseSVG = ''; svgEl = null; mode = 'path'; selected = new Set(); hotspots = []; hsSeq = 0;
+  baseSVG = ''; svgEl = null; mode = 'path'; selected = new Set(); hotspots = []; hsSeq = 0; origImg = '';
 
-  // 從描邊工具傳入的 SVG（sessionStorage 交接）
+  // 從描邊工具傳入的 SVG + 原圖（sessionStorage 交接）
   const handoff = sessionStorage.getItem('hs-handoff-svg');
+  origImg = sessionStorage.getItem('hs-handoff-img') || '';
+  sessionStorage.removeItem('hs-handoff-img');
   if (handoff) {
     sessionStorage.removeItem('hs-handoff-svg');
     $('hsInput').value = handoff;
@@ -121,6 +126,7 @@ export function init() {
   $('hsBind').addEventListener('click', bindSelected);
   $('hsClearSel').addEventListener('click', () => { clearSelection(); renderUI(); });
   $('hsExport').addEventListener('click', exportSVG);
+  $('hsExportImg').addEventListener('click', exportImgSVG);
   $('hsCopy').addEventListener('click', copySVG);
 
   return () => { if (stageOff) { stageOff(); stageOff = null; } };
@@ -332,19 +338,57 @@ function buildExport() {
         a.appendChild(p);
       });
     } else {
-      const a = doc.createElementNS(SVGNS, 'a');
-      setHref(a, hs.href);
-      const r = doc.createElementNS(SVGNS, 'rect');
-      r.setAttribute('x', hs.x); r.setAttribute('y', hs.y);
-      r.setAttribute('width', hs.w); r.setAttribute('height', hs.h);
-      r.setAttribute('fill', 'transparent'); r.setAttribute('pointer-events', 'all');
-      a.appendChild(r);
-      svg.appendChild(a);                               // 疊在最上層
+      svg.appendChild(hotspotRect(doc, hs.x, hs.y, hs.w, hs.h, hs.href));   // 疊在最上層
     }
   });
 
   svg.querySelectorAll('[data-hs-id]').forEach(p => p.removeAttribute('data-hs-id'));  // 清掉輔助屬性
   return new XMLSerializer().serializeToString(svg);
+}
+
+// 原圖內嵌版:原圖 <image> 當底 + 熱區(path 群自動轉外框 rect),不含描邊 path
+function buildExportImage() {
+  const doc = new DOMParser().parseFromString(baseSVG, 'image/svg+xml');
+  const svg = doc.querySelector('svg');
+  const { x, y, w, h } = svgDims(svg);
+  svg.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xlink', XLINKNS);
+  while (svg.firstChild) svg.removeChild(svg.firstChild);   // 清掉描邊 path
+
+  if (origImg) {
+    const img = doc.createElementNS(SVGNS, 'image');
+    img.setAttribute('x', x); img.setAttribute('y', y);
+    img.setAttribute('width', w); img.setAttribute('height', h);
+    img.setAttribute('href', origImg);
+    img.setAttributeNS(XLINKNS, 'xlink:href', origImg);
+    svg.appendChild(img);
+  }
+
+  hotspots.forEach(hs => {
+    if (hs.type === 'rect') { svg.appendChild(hotspotRect(doc, hs.x, hs.y, hs.w, hs.h, hs.href)); return; }
+    const bb = groupBBox(hs.ids);                            // path 群 → 外框方塊(取自 live stage)
+    if (bb) svg.appendChild(hotspotRect(doc, bb.x, bb.y, bb.w, bb.h, hs.href));
+  });
+
+  return new XMLSerializer().serializeToString(svg);
+}
+
+// 取 SVG 座標框:優先 viewBox(含偏移),退回 width/height
+function svgDims(svg) {
+  const vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+  if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) return { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
+  return { x: 0, y: 0, w: parseFloat(svg.getAttribute('width')) || 300, h: parseFloat(svg.getAttribute('height')) || 150 };
+}
+
+// 透明可點的熱區 <a><rect>
+function hotspotRect(doc, x, y, w, h, href) {
+  const a = doc.createElementNS(SVGNS, 'a');
+  setHref(a, href);
+  const r = doc.createElementNS(SVGNS, 'rect');
+  r.setAttribute('x', x); r.setAttribute('y', y);
+  r.setAttribute('width', w); r.setAttribute('height', h);
+  r.setAttribute('fill', 'transparent'); r.setAttribute('pointer-events', 'all');
+  a.appendChild(r);
+  return a;
 }
 
 function setHref(a, href) {
@@ -356,13 +400,22 @@ function setHref(a, href) {
   }
 }
 
+function downloadSVG(str, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([str], { type: 'image/svg+xml' }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 function exportSVG() {
   if (!hotspots.length) { setStatus('尚未建立任何熱區'); return; }
-  const out = buildExport();
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([out], { type: 'image/svg+xml' }));
-  a.download = 'interactive.svg'; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  downloadSVG(buildExport(), 'interactive.svg');
+}
+
+function exportImgSVG() {
+  if (!hotspots.length) { setStatus('尚未建立任何熱區'); return; }
+  if (!origImg) setStatus('無原圖(未從描邊工具交接),改匯出透明熱區層');
+  downloadSVG(buildExportImage(), 'interactive-image.svg');
 }
 
 function copySVG() {
@@ -378,7 +431,7 @@ function setStatus(msg) { const el = $('hsStatus'); if (el) el.textContent = msg
 
 export function reset() {
   if (stageOff) { stageOff(); stageOff = null; }   // 解除全域拖曳監聽
-  baseSVG = ''; svgEl = null; selected = new Set(); hotspots = []; mode = 'path';
+  baseSVG = ''; svgEl = null; selected = new Set(); hotspots = []; mode = 'path'; origImg = '';
   if ($('hsInput')) $('hsInput').value = '';
   if ($('hsEditor')) $('hsEditor').hidden = true;
   if ($('hsStage')) $('hsStage').innerHTML = '';
