@@ -85,7 +85,7 @@ export function template() {
           <button id="hsExportImg">匯出原圖內嵌版</button>
           <button id="hsCopy" class="btn-ghost">複製描邊版原始碼</button>
         </div>
-        <p class="muted" style="margin:.2rem 0 0;">描邊版:path 包 `&lt;a&gt;` 的純向量成品。原圖內嵌版:原圖清晰顯示,path 群自動轉外框熱區(需從描邊工具交接原圖)。</p>
+        <p class="muted" style="margin:.2rem 0 0;">描邊版:path 包 <code>&lt;a&gt;</code> 的純向量成品。原圖內嵌版:原圖清晰顯示,path 群自動轉外框熱區(需從描邊工具交接原圖)。</p>
       </div>
     </div>
   `;
