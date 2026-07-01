@@ -157,7 +157,9 @@ export function init() {
       // 用 setTimeout 讓「描邊中…」先繪出，再跑同步重運算
       await new Promise(r => setTimeout(r, 20));
       const td = ImageTracer.imagedataToTracedata(srcImageData, options);
-      lastSVG = ImageTracer.getsvgstring(td, td.options || {});
+      // 傳同一份 options 給 getsvgstring:內部會 checkoptions() 解析字串預設並補預設值，
+      // 才能套用預設風格的 SVG 渲染參數（strokewidth 等）；td 本身不帶 options。
+      lastSVG = ImageTracer.getsvgstring(td, options);
 
       const paths = (lastSVG.match(/<path/g) || []).length;
       const layers = td.layers ? td.layers.length : 0;
@@ -202,5 +204,12 @@ export function reset() {
   if ($('itStats')) $('itStats').textContent = '';
   if ($('itDropMsg')) $('itDropMsg').textContent = '拖曳圖片到這裡，或點擊選擇檔案';
   if ($('itPreset')) $('itPreset').value = 'custom';
-  ['itColors', 'itOmit', 'itBlur'].forEach(id => { if ($(id)) $(id).disabled = false; });
+  // 滑桿數值、顯示文字、停用狀態一併還原初始值
+  const defaults = { itColors: '16', itOmit: '8', itBlur: '0' };
+  Object.entries(defaults).forEach(([id, val]) => {
+    const input = $(id);
+    if (input) { input.value = val; input.disabled = false; }
+    const label = $(id + 'Val');
+    if (label) label.textContent = val;
+  });
 }
