@@ -191,10 +191,12 @@ async function loadFiles(fileList) {
   const files = [...fileList];
   if (!files.length) return;
 
+  // 任何新輸入都廢止進行中的舊任務；catch 也用同一個 id 判斷，
+  // 使用者已切走/已換檔時不彈過期的錯誤 alert
+  const id = ++extractionId;
   try {
     if (files[0].type.startsWith('video/')) {
       videoFile = files[0];
-      const id = ++extractionId; // 換新檔案：讓進行中的舊抽幀失效
       const extracted = await extractFrames(videoFile, count());
       if (id !== extractionId) return;
       frames = extracted;
@@ -205,20 +207,24 @@ async function loadFiles(fileList) {
       const imgs = files.filter(f => f.type.startsWith('image/'))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       if (imgs.length < 2) { alert('幀序列請一次選擇至少 2 張圖片'); return; }
-      // 同樣走世代標記：廢止進行中的舊任務，載入完才一次性交換，
-      // 連續快速拖入多組序列時不會交錯污染 frames
-      const id = ++extractionId;
+      // 載入完才一次性交換，連續快速拖入多組序列時不會交錯污染 frames
       const loaded = [];
       for (const f of imgs) {
         const canvas = await imageToCanvas(f);
         if (id !== extractionId) return;
+        // 尺寸驗證（以正規化後為準）：管線的聯集 bbox 假設所有幀同座標系，
+        // 尺寸不一會裁錯位置，直接拒收比較誠實
+        if (loaded.length && (canvas.width !== loaded[0].src.width || canvas.height !== loaded[0].src.height)) {
+          alert(`幀尺寸不一致：${f.name} 是 ${canvas.width}×${canvas.height}，第一張是 ${loaded[0].src.width}×${loaded[0].src.height}。請提供同尺寸的幀序列。`);
+          return;
+        }
         loaded.push({ src: canvas, included: true });
       }
       frames = loaded;
     }
   } catch (err) {
     console.error(err);
-    alert('讀取失敗：' + (err.message || '格式不支援'));
+    if (id === extractionId) alert('讀取失敗：' + (err.message || '格式不支援'));
     return;
   }
 
@@ -255,8 +261,10 @@ async function extractFrames(file, n) {
       const target = Math.max(0, Math.min(t, video.duration - 0.05));
       // 設同值 currentTime 部分瀏覽器不觸發 seeked（首幀 t=0 必踩），已在位就直接擷取
       if (Math.abs(video.currentTime - target) > 0.01) {
-        await new Promise(res => {
+        // seek 也要掛 onerror：影片中段損毀時 seeked 不會來，否則永久懸置
+        await new Promise((res, rej) => {
           video.onseeked = res;
+          video.onerror = () => rej(new Error('影片 seek 失敗（檔案可能損毀）'));
           video.currentTime = target;
         });
       }
