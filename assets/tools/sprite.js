@@ -1,0 +1,572 @@
+// 精靈圖工作台：影片/幀序列 → 抽幀 → 白底去背 → 質心對位 → sprite sheet + CSS
+// 全程純前端（canvas 像素運算），零外部函式庫。
+// 設計給「AI 圖生影片 → 網站吉祥物精靈圖」流程：生成時刻意用白底，
+// 這裡用白底 un-blend 反解 alpha（半透明光暈也能保留），不需 ML 去背模型。
+
+let frames = [];        // { src: canvas(原始，最長邊 ≤1024), included: bool }
+let cells = [];         // 管線輸出：每幀一個 cell canvas（同尺寸）
+let cellW = 0, cellH = 0;
+let videoFile = null;   // 保留原始影片檔，改抽幀數時重抽
+let previewTimer = null;
+let previewIdx = 0;
+let previewDir = 1;
+let pipelineTimer = null;
+let extractTimer = null;
+let extractionId = 0;  // 抽幀任務世代標記：慢任務完成時若已過期就丟棄，防競態
+
+export function template() {
+  return `
+    <p class="muted">
+      拖入一段短影片（AI 圖生影片產物）或多張同尺寸幀圖，抽幀 → 白底去背 → 對位 →
+      打包成 sprite sheet，附 CSS <code>steps()</code> 片段。生成素材時請用<b>純白背景</b>，去背採白底反解，光暈的半透明會保留。
+    </p>
+
+    <div id="spDropZone" class="drop-zone">
+      拖曳影片（mp4 / webm）或多張幀圖（PNG / JPG）到這裡，或點擊選擇檔案
+      <input type="file" id="spFileInput" accept="video/*,image/*" multiple hidden>
+    </div>
+
+    <div id="spWork" style="display:none;">
+      <div class="grid-4" style="margin-top:1rem;">
+        <div id="spExtractWrap">
+          <label>抽幀數: <span id="spCountVal">10</span></label>
+          <input type="range" id="spCount" min="4" max="24" value="10">
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:7px;">
+            <input type="checkbox" id="spMatte" checked> 白底去背
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;margin-top:6px;">
+            <input type="checkbox" id="spAlign" checked> 質心對位（防漂移）
+          </label>
+        </div>
+        <div>
+          <label>去背白場（雜訊裁切）: <span id="spLoVal">0.04</span></label>
+          <input type="range" id="spLo" min="0" max="0.3" step="0.01" value="0.04">
+        </div>
+        <div>
+          <label>去背實心點（光暈保留）: <span id="spHiVal">0.5</span></label>
+          <input type="range" id="spHi" min="0.1" max="1" step="0.05" value="0.5">
+        </div>
+      </div>
+
+      <label style="margin-top:.5rem;">幀（點擊剔除爛幀，虛化 = 不輸出）:</label>
+      <div id="spStrip" style="display:flex;gap:6px;overflow-x:auto;padding:6px 0;"></div>
+
+      <div class="grid-4" style="margin-top:.5rem;">
+        <div>
+          <label>輸出格高:</label>
+          <select id="spCellH">
+            <option value="128">128 px</option>
+            <option value="256" selected>256 px</option>
+            <option value="512">512 px</option>
+          </select>
+        </div>
+        <div>
+          <label>邊距 (px):</label>
+          <input type="number" id="spPad" value="8" min="0" max="64">
+        </div>
+        <div>
+          <label>預覽 FPS: <span id="spFpsVal">10</span></label>
+          <input type="range" id="spFps" min="2" max="30" value="10">
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:7px;">
+            <input type="checkbox" id="spPingpong"> 來回播放
+          </label>
+          <label style="margin-top:6px;">預覽底:</label>
+          <select id="spBg">
+            <option value="checker" selected>棋盤格</option>
+            <option value="#1d2a22">深色</option>
+            <option value="#f4f4ea">淺色</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:1rem;">
+        <canvas id="spPreview" style="max-width:100%;border:1px solid var(--outline-variant);border-radius:8px;"></canvas>
+        <p class="muted" id="spInfo"></p>
+      </div>
+
+      <div class="button-row">
+        <button id="spSheetBtn" data-primary>下載 Sprite Sheet PNG</button>
+        <button id="spCssBtn" class="btn-ghost">複製 CSS 片段</button>
+        <button id="spJsonBtn" class="btn-ghost">下載 JSON metadata</button>
+      </div>
+    </div>
+  `;
+}
+
+export async function init() {
+  const dropZone = document.getElementById('spDropZone');
+  const fileInput = document.getElementById('spFileInput');
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); loadFiles(e.dataTransfer.files); });
+  fileInput.addEventListener('change', e => loadFiles(e.target.files));
+
+  const rerun = () => schedulePipeline();
+  // 拖滑桿會連續觸發，抽幀又慢：debounce + 世代標記，只留最後一次的結果
+  bindSlider('spCount', 'spCountVal', () => {
+    if (!videoFile) return;
+    clearTimeout(extractTimer);
+    extractTimer = setTimeout(reExtract, 300);
+  });
+  // lo/hi 衝突時推動另一支滑桿，讓介面顯示與實際去背參數一致
+  bindSlider('spLo', 'spLoVal', () => {
+    const loEl = document.getElementById('spLo');
+    const hiEl = document.getElementById('spHi');
+    if (parseFloat(hiEl.value) < parseFloat(loEl.value) + 0.01) {
+      hiEl.value = (parseFloat(loEl.value) + 0.01).toFixed(2);
+      document.getElementById('spHiVal').textContent = hiEl.value;
+    }
+    rerun();
+  });
+  bindSlider('spHi', 'spHiVal', () => {
+    const loEl = document.getElementById('spLo');
+    const hiEl = document.getElementById('spHi');
+    if (parseFloat(hiEl.value) < parseFloat(loEl.value) + 0.01) {
+      loEl.value = Math.max(0, parseFloat(hiEl.value) - 0.01).toFixed(2);
+      document.getElementById('spLoVal').textContent = loEl.value;
+    }
+    rerun();
+  });
+  bindSlider('spFps', 'spFpsVal', () => {});
+  document.getElementById('spMatte').addEventListener('change', rerun);
+  document.getElementById('spAlign').addEventListener('change', rerun);
+  document.getElementById('spCellH').addEventListener('change', rerun);
+  document.getElementById('spPad').addEventListener('change', rerun);
+  document.getElementById('spPingpong').addEventListener('change', () => {});
+  document.getElementById('spBg').addEventListener('change', () => {});
+
+  document.getElementById('spSheetBtn').addEventListener('click', downloadSheet);
+  document.getElementById('spCssBtn').addEventListener('click', copyCss);
+  document.getElementById('spJsonBtn').addEventListener('click', downloadJson);
+
+  startPreviewLoop();
+  return () => {           // cleanup
+    stopPreviewLoop();
+    abortPending();
+    frames = []; cells = []; videoFile = null;
+  };
+}
+
+export function reset() {
+  stopPreviewLoop();
+  abortPending();
+  frames = []; cells = []; videoFile = null; cellW = cellH = 0;
+  document.getElementById('spWork').style.display = 'none';
+  document.getElementById('spStrip').innerHTML = '';
+  document.getElementById('spFileInput').value = '';
+  startPreviewLoop();
+}
+
+// 讓進行中/排程中的非同步工作全部失效（切工具、重置、換檔案時呼叫）
+function abortPending() {
+  extractionId++;
+  clearTimeout(extractTimer);
+  clearTimeout(pipelineTimer);
+}
+
+async function reExtract() {
+  const id = ++extractionId;
+  try {
+    const extracted = await extractFrames(videoFile, count());
+    if (id !== extractionId) return; // 已有更新的任務或已重置，丟棄
+    frames = extracted;
+    renderStrip();
+    schedulePipeline();
+  } catch (err) {
+    console.error(err);
+    if (id === extractionId) alert('抽幀失敗：' + (err.message || '未知錯誤'));
+  }
+}
+
+// ── 輸入 ─────────────────────────────────────────────────────────────────────
+
+function count() { return parseInt(document.getElementById('spCount').value); }
+
+async function loadFiles(fileList) {
+  const files = [...fileList];
+  if (!files.length) return;
+
+  // 任何新輸入都廢止進行中的舊任務；catch 也用同一個 id 判斷，
+  // 使用者已切走/已換檔時不彈過期的錯誤 alert
+  const id = ++extractionId;
+  try {
+    if (files[0].type.startsWith('video/')) {
+      videoFile = files[0];
+      const extracted = await extractFrames(videoFile, count());
+      if (id !== extractionId) return;
+      frames = extracted;
+      document.getElementById('spExtractWrap').style.display = '';
+    } else {
+      videoFile = null;
+      document.getElementById('spExtractWrap').style.display = 'none';
+      const imgs = files.filter(f => f.type.startsWith('image/'))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      if (imgs.length < 2) { alert('幀序列請一次選擇至少 2 張圖片'); return; }
+      // 載入完才一次性交換，連續快速拖入多組序列時不會交錯污染 frames
+      const loaded = [];
+      for (const f of imgs) {
+        const canvas = await imageToCanvas(f);
+        if (id !== extractionId) return;
+        // 尺寸驗證（以正規化後為準）：管線的聯集 bbox 假設所有幀同座標系，
+        // 尺寸不一會裁錯位置，直接拒收比較誠實
+        if (loaded.length && (canvas.width !== loaded[0].src.width || canvas.height !== loaded[0].src.height)) {
+          alert(`幀尺寸不一致：${f.name} 是 ${canvas.width}×${canvas.height}，第一張是 ${loaded[0].src.width}×${loaded[0].src.height}。請提供同尺寸的幀序列。`);
+          return;
+        }
+        loaded.push({ src: canvas, included: true });
+      }
+      frames = loaded;
+    }
+  } catch (err) {
+    console.error(err);
+    if (id === extractionId) alert('讀取失敗：' + (err.message || '格式不支援'));
+    return;
+  }
+
+  document.getElementById('spWork').style.display = 'block';
+  renderStrip();
+  schedulePipeline();
+}
+
+async function extractFrames(file, n) {
+  const url = URL.createObjectURL(file);
+  try {
+    const video = document.createElement('video');
+    video.muted = true; video.playsInline = true; video.preload = 'auto';
+    video.src = url;
+    await new Promise((res, rej) => {
+      video.onloadedmetadata = res;
+      video.onerror = () => rej(new Error('影片載入失敗'));
+    });
+    // 部分瀏覽器 metadata 後尚不能 seek 繪圖，先等首幀可用；
+    // 這裡也要掛 onerror，否則解碼失敗會讓 Promise 永遠懸置
+    await new Promise((res, rej) => {
+      if (video.readyState >= 2) return res();
+      video.oncanplay = res;
+      video.onerror = () => rej(new Error('影片解碼失敗'));
+    });
+    if (!isFinite(video.duration) || video.duration <= 0) {
+      throw new Error('無法取得影片長度');
+    }
+
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const t = video.duration * i / n;
+      // 夾 ≥0：極短影片 duration-0.05 會變負數，部分瀏覽器直接丟 DOMException
+      const target = Math.max(0, Math.min(t, video.duration - 0.05));
+      // 設同值 currentTime 部分瀏覽器不觸發 seeked（首幀 t=0 必踩），已在位就直接擷取
+      if (Math.abs(video.currentTime - target) > 0.01) {
+        // seek 也要掛 onerror：影片中段損毀時 seeked 不會來，否則永久懸置
+        await new Promise((res, rej) => {
+          video.onseeked = res;
+          video.onerror = () => rej(new Error('影片 seek 失敗（檔案可能損毀）'));
+          video.currentTime = target;
+        });
+      }
+      out.push({ src: frameToCanvas(video, video.videoWidth, video.videoHeight), included: true });
+    }
+    return out;
+  } finally {
+    URL.revokeObjectURL(url); // 失敗路徑也要釋放，否則 object URL 洩漏
+  }
+}
+
+function imageToCanvas(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { res(frameToCanvas(img, img.naturalWidth, img.naturalHeight)); URL.revokeObjectURL(url); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(file.name + ' 載入失敗')); };
+    img.src = url;
+  });
+}
+
+// 進場統一縮到最長邊 ≤1024：輸出格高上限 512，保留餘裕即可，處理管線快很多。
+// w/h 可能為 0（影片未就緒、圖片損壞），夾到 ≥1 避免 0 尺寸 canvas 炸 drawImage
+function frameToCanvas(source, w, h) {
+  w = Math.max(1, w || 1); h = Math.max(1, h || 1);
+  const scale = Math.min(1, 1024 / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * scale));
+  c.height = Math.max(1, Math.round(h * scale));
+  c.getContext('2d').drawImage(source, 0, 0, c.width, c.height);
+  return c;
+}
+
+// ── 幀列表 ───────────────────────────────────────────────────────────────────
+
+function renderStrip() {
+  const strip = document.getElementById('spStrip');
+  strip.innerHTML = '';
+  frames.forEach((f, i) => {
+    const th = document.createElement('canvas');
+    const s = 72 / f.src.height;
+    th.width = Math.round(f.src.width * s); th.height = 72;
+    th.getContext('2d').drawImage(f.src, 0, 0, th.width, th.height);
+    th.style.cssText = `border-radius:6px;cursor:pointer;flex-shrink:0;border:2px solid var(--outline-variant);opacity:${f.included ? 1 : 0.25};`;
+    th.title = `幀 ${i + 1}（點擊${f.included ? '剔除' : '恢復'}）`;
+    th.addEventListener('click', () => {
+      f.included = !f.included;
+      th.style.opacity = f.included ? 1 : 0.25;
+      schedulePipeline();
+    });
+    strip.appendChild(th);
+  });
+}
+
+// ── 處理管線 ─────────────────────────────────────────────────────────────────
+
+function schedulePipeline() {
+  clearTimeout(pipelineTimer);
+  pipelineTimer = setTimeout(runPipeline, 150);
+}
+
+function runPipeline() {
+  const included = frames.filter(f => f.included);
+  cells = []; cellW = cellH = 0;
+  previewIdx = 0; previewDir = 1; // 幀數變動時歸零，避免預覽卡在越界索引
+  if (!included.length) { updateInfo(); return; }
+
+  const matte = document.getElementById('spMatte').checked;
+  const align = document.getElementById('spAlign').checked;
+  const lo = parseFloat(document.getElementById('spLo').value);
+  const hi = Math.max(parseFloat(document.getElementById('spHi').value), lo + 0.01);
+  const targetH = parseInt(document.getElementById('spCellH').value);
+  // pad 夾在格高一半以下，否則 targetH - pad*2 ≤ 0 會讓 scale 歸零炸 drawImage
+  const rawPad = parseInt(document.getElementById('spPad').value) || 0;
+  const pad = Math.min(Math.max(0, rawPad), Math.floor(targetH / 2) - 1);
+
+  // 1) 去背 + 逐幀量測（bbox 與質心）
+  const measured = included.map(f => {
+    const c = document.createElement('canvas');
+    c.width = f.src.width; c.height = f.src.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(f.src, 0, 0);
+    const im = ctx.getImageData(0, 0, c.width, c.height);
+    if (matte) whiteKey(im.data, lo, hi);
+    const m = measure(im, c.width, c.height);
+    ctx.putImageData(im, 0, 0);
+    return { canvas: c, ...m };
+  });
+
+  // 2) 決定 cell 尺寸（原始像素座標系）——只用非空幀計算，
+  //    空幀仍輸出空白 cell 保住動畫節奏
+  //    對位：以質心為中心，取所有幀的最大半徑；不對位：取聯集 bbox
+  const nonEmpties = measured.filter(m => !m.isEmpty);
+  if (!nonEmpties.length) { updateInfo(); return; }
+  let srcW, srcH;
+  if (align) {
+    let rx = 0, ry = 0;
+    for (const m of nonEmpties) {
+      rx = Math.max(rx, m.cx - m.x0, m.x1 - m.cx);
+      ry = Math.max(ry, m.cy - m.y0, m.y1 - m.cy);
+    }
+    srcW = rx * 2; srcH = ry * 2;
+  } else {
+    const x0 = Math.min(...nonEmpties.map(m => m.x0));
+    const y0 = Math.min(...nonEmpties.map(m => m.y0));
+    const x1 = Math.max(...nonEmpties.map(m => m.x1));
+    const y1 = Math.max(...nonEmpties.map(m => m.y1));
+    srcW = x1 - x0; srcH = y1 - y0;
+    measured.forEach(m => { m.cx = (x0 + x1) / 2; m.cy = (y0 + y1) / 2; }); // 共用中心
+  }
+  if (srcW < 2 || srcH < 2) { updateInfo(); return; }
+
+  // 3) 縮放到輸出格高，逐幀以中心對齊畫入 cell
+  const scale = (targetH - pad * 2) / srcH;
+  cellH = targetH;
+  cellW = Math.round(srcW * scale) + pad * 2;
+  for (const m of measured) {
+    const c = document.createElement('canvas');
+    c.width = cellW; c.height = cellH;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(
+      m.canvas,
+      cellW / 2 - m.cx * scale,
+      cellH / 2 - m.cy * scale,
+      m.canvas.width * scale,
+      m.canvas.height * scale,
+    );
+    cells.push(c);
+  }
+  updateInfo();
+  startPreviewLoop(); // 迴圈只在有 cells 時跑，這裡是（重新）啟動點
+}
+
+// 白底 un-blend：假設像素 = 前景×α + 白×(1-α)，以 min(r,g,b) 反解 α，
+// 再用 lo/hi 做 levels（lo 裁雜訊、hi 之上視為實心），最後還原前景色
+function whiteKey(d, lo, hi) {
+  for (let i = 0; i < d.length; i += 4) {
+    const a = (255 - Math.min(d[i], d[i + 1], d[i + 2])) / 255;
+    const t = Math.min(1, Math.max(0, (a - lo) / (hi - lo)));
+    if (t <= 0) { d[i + 3] = 0; continue; }
+    for (let k = 0; k < 3; k++) {
+      d[i + k] = Math.min(255, Math.max(0, (d[i + k] - 255 * (1 - t)) / t));
+    }
+    d[i + 3] = Math.round(t * 255);
+  }
+}
+
+// alpha 加權質心 + bbox（alpha > 5 才計入）
+function measure(im, w, h) {
+  const d = im.data;
+  let sum = 0, sx = 0, sy = 0, x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = d[(y * w + x) * 4 + 3];
+      if (a < 6) continue;
+      sum += a; sx += x * a; sy += y * a;
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  // 空幀（去背後全透明）標記 isEmpty 並收斂成點：不能 fallback 成整張畫布，
+  // 否則會把聯集 bbox/對位半徑撐到最大，正常幀被縮到幾乎看不見
+  if (!sum) {
+    return { cx: w / 2, cy: h / 2, x0: w / 2, y0: h / 2, x1: w / 2, y1: h / 2, isEmpty: true };
+  }
+  return { cx: sx / sum, cy: sy / sum, x0, y0, x1: x1 + 1, y1: y1 + 1, isEmpty: false };
+}
+
+function updateInfo() {
+  const info = document.getElementById('spInfo');
+  info.textContent = cells.length
+    ? `${cells.length} 幀 · 格 ${cellW}×${cellH} px · sheet ${cellW * cells.length}×${cellH} px`
+    : '無可輸出的幀（全部被剔除或畫面為空）';
+}
+
+// ── 預覽 ─────────────────────────────────────────────────────────────────────
+
+// 只在有 cells 時運轉，無幀時不佔 CPU；runPipeline 產出後會重新啟動
+function startPreviewLoop() {
+  stopPreviewLoop();
+  if (!cells.length) { drawPreview(); return; } // 畫一次空狀態（清掉舊畫面）即停
+  const tick = () => {
+    // 途中被清空（全剔除）：清畫面後自停
+    if (!cells.length) { drawPreview(); stopPreviewLoop(); return; }
+    drawPreview();
+    const fps = parseInt(document.getElementById('spFps')?.value || 10);
+    previewTimer = setTimeout(tick, 1000 / fps);
+  };
+  tick();
+}
+
+function stopPreviewLoop() {
+  clearTimeout(previewTimer);
+  previewTimer = null;
+}
+
+function drawPreview() {
+  const cvs = document.getElementById('spPreview');
+  if (!cvs) return;
+  if (!cells.length) { cvs.width = 0; cvs.height = 0; return; }
+
+  if (document.getElementById('spPingpong').checked && cells.length > 1) {
+    if (previewIdx + previewDir >= cells.length || previewIdx + previewDir < 0) previewDir *= -1;
+    previewIdx += previewDir;
+  } else {
+    previewIdx = (previewIdx + 1) % cells.length;
+  }
+  const cell = cells[Math.min(previewIdx, cells.length - 1)];
+
+  cvs.width = cell.width; cvs.height = cell.height;
+  const ctx = cvs.getContext('2d');
+  const bg = document.getElementById('spBg').value;
+  if (bg === 'checker') {
+    // pattern 一次鋪滿，取代每幀上千次 fillRect；tile 快取、pattern 每次由當前 ctx 建立
+    ctx.fillStyle = ctx.createPattern(checkerTile(), 'repeat');
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+  } else {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+  }
+  ctx.drawImage(cell, 0, 0);
+}
+
+let checkerTileCanvas = null;
+function checkerTile() {
+  if (!checkerTileCanvas) {
+    checkerTileCanvas = document.createElement('canvas');
+    checkerTileCanvas.width = 32; checkerTileCanvas.height = 32;
+    const p = checkerTileCanvas.getContext('2d');
+    p.fillStyle = '#efefef'; p.fillRect(0, 0, 32, 32);
+    p.fillStyle = '#d5d5d5'; p.fillRect(0, 0, 16, 16); p.fillRect(16, 16, 16, 16);
+  }
+  return checkerTileCanvas;
+}
+
+// ── 匯出 ─────────────────────────────────────────────────────────────────────
+
+function buildSheet() {
+  if (!cells.length) { alert('尚無可輸出的幀'); return null; }
+  const sheet = document.createElement('canvas');
+  sheet.width = cellW * cells.length; sheet.height = cellH;
+  const ctx = sheet.getContext('2d');
+  cells.forEach((c, i) => ctx.drawImage(c, i * cellW, 0));
+  return sheet;
+}
+
+function downloadSheet() {
+  const sheet = buildSheet();
+  if (!sheet) return;
+  // toBlob 而非 toDataURL：24 幀×512 格高的 sheet 轉 Base64 字串會吃掉數十 MB
+  sheet.toBlob(blob => {
+    if (!blob) { alert('產圖失敗：可能超出瀏覽器 canvas 尺寸上限或記憶體不足'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `sprite-sheet-${cells.length}x-${cellW}x${cellH}.png`;
+    a.href = url;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, 'image/png');
+}
+
+function copyCss() {
+  if (!cells.length) { alert('尚無可輸出的幀'); return; }
+  const n = cells.length;
+  const fps = parseInt(document.getElementById('spFps').value);
+  const pp = document.getElementById('spPingpong').checked;
+  const css = `.sprite {
+  width: ${cellW}px;
+  height: ${cellH}px;
+  background: url('sprite-sheet.png') 0 0 / ${cellW * n}px ${cellH}px no-repeat;
+  animation: sprite-play ${(n / fps).toFixed(2)}s steps(${n}) infinite${pp ? ' alternate' : ''};
+}
+@keyframes sprite-play {
+  to { background-position-x: ${-cellW * n}px; }
+}`;
+  navigator.clipboard.writeText(css)
+    .then(() => alert('CSS 已複製'))
+    .catch(() => alert('複製失敗，請手動複製主控台輸出\n\n' + css));
+}
+
+function downloadJson() {
+  if (!cells.length) { alert('尚無可輸出的幀'); return; }
+  const meta = {
+    frames: cells.length,
+    cellWidth: cellW,
+    cellHeight: cellH,
+    fps: parseInt(document.getElementById('spFps').value),
+    pingpong: document.getElementById('spPingpong').checked,
+    generator: 'my-tools sprite workbench',
+  };
+  const a = document.createElement('a');
+  a.download = 'sprite-sheet.json';
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(meta, null, 2));
+  a.click();
+}
+
+// ── 小工具 ───────────────────────────────────────────────────────────────────
+
+function bindSlider(id, valId, onChange) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    document.getElementById(valId).textContent = el.value;
+    onChange();
+  });
+}
