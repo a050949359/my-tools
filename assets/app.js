@@ -17,6 +17,7 @@ const TOOL_GROUPS = [
       { id: 'imageBrowser', label: '本地圖片瀏覽器',  src: './tools/imageBrowser.js' },
       { id: 'imageTracer',  label: '圖片 → SVG 描邊', src: './tools/imageTracer.js'  },
       { id: 'imageHotspot', label: 'SVG 互動熱區',    src: './tools/imageHotspot.js' },
+      { id: 'sprite',       label: '精靈圖工作台',     src: './tools/sprite.js'       },
     ]
   },
   {
