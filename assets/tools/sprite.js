@@ -113,8 +113,25 @@ export async function init() {
     clearTimeout(extractTimer);
     extractTimer = setTimeout(reExtract, 300);
   });
-  bindSlider('spLo', 'spLoVal', rerun);
-  bindSlider('spHi', 'spHiVal', rerun);
+  // lo/hi 衝突時推動另一支滑桿，讓介面顯示與實際去背參數一致
+  bindSlider('spLo', 'spLoVal', () => {
+    const loEl = document.getElementById('spLo');
+    const hiEl = document.getElementById('spHi');
+    if (parseFloat(hiEl.value) < parseFloat(loEl.value) + 0.01) {
+      hiEl.value = (parseFloat(loEl.value) + 0.01).toFixed(2);
+      document.getElementById('spHiVal').textContent = hiEl.value;
+    }
+    rerun();
+  });
+  bindSlider('spHi', 'spHiVal', () => {
+    const loEl = document.getElementById('spLo');
+    const hiEl = document.getElementById('spHi');
+    if (parseFloat(hiEl.value) < parseFloat(loEl.value) + 0.01) {
+      loEl.value = Math.max(0, parseFloat(hiEl.value) - 0.01).toFixed(2);
+      document.getElementById('spLoVal').textContent = loEl.value;
+    }
+    rerun();
+  });
   bindSlider('spFps', 'spFpsVal', () => {});
   document.getElementById('spMatte').addEventListener('change', rerun);
   document.getElementById('spAlign').addEventListener('change', rerun);
@@ -184,13 +201,20 @@ async function loadFiles(fileList) {
       document.getElementById('spExtractWrap').style.display = '';
     } else {
       videoFile = null;
-      extractionId++; // 改餵圖片序列：同樣廢止進行中的影片抽幀
       document.getElementById('spExtractWrap').style.display = 'none';
       const imgs = files.filter(f => f.type.startsWith('image/'))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       if (imgs.length < 2) { alert('幀序列請一次選擇至少 2 張圖片'); return; }
-      frames = [];
-      for (const f of imgs) frames.push({ src: await imageToCanvas(f), included: true });
+      // 同樣走世代標記：廢止進行中的舊任務，載入完才一次性交換，
+      // 連續快速拖入多組序列時不會交錯污染 frames
+      const id = ++extractionId;
+      const loaded = [];
+      for (const f of imgs) {
+        const canvas = await imageToCanvas(f);
+        if (id !== extractionId) return;
+        loaded.push({ src: canvas, included: true });
+      }
+      frames = loaded;
     }
   } catch (err) {
     console.error(err);
@@ -205,32 +229,39 @@ async function loadFiles(fileList) {
 
 async function extractFrames(file, n) {
   const url = URL.createObjectURL(file);
-  const video = document.createElement('video');
-  video.muted = true; video.playsInline = true; video.preload = 'auto';
-  video.src = url;
-  await new Promise((res, rej) => {
-    video.onloadedmetadata = res;
-    video.onerror = () => rej(new Error('影片載入失敗'));
-  });
-  // 部分瀏覽器 metadata 後尚不能 seek 繪圖，先等首幀可用；
-  // 這裡也要掛 onerror，否則解碼失敗會讓 Promise 永遠懸置
-  await new Promise((res, rej) => {
-    if (video.readyState >= 2) return res();
-    video.oncanplay = res;
-    video.onerror = () => rej(new Error('影片解碼失敗'));
-  });
-  if (!isFinite(video.duration) || video.duration <= 0) {
-    throw new Error('無法取得影片長度');
-  }
+  try {
+    const video = document.createElement('video');
+    video.muted = true; video.playsInline = true; video.preload = 'auto';
+    video.src = url;
+    await new Promise((res, rej) => {
+      video.onloadedmetadata = res;
+      video.onerror = () => rej(new Error('影片載入失敗'));
+    });
+    // 部分瀏覽器 metadata 後尚不能 seek 繪圖，先等首幀可用；
+    // 這裡也要掛 onerror，否則解碼失敗會讓 Promise 永遠懸置
+    await new Promise((res, rej) => {
+      if (video.readyState >= 2) return res();
+      video.oncanplay = res;
+      video.onerror = () => rej(new Error('影片解碼失敗'));
+    });
+    if (!isFinite(video.duration) || video.duration <= 0) {
+      throw new Error('無法取得影片長度');
+    }
 
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const t = video.duration * i / n;
-    await new Promise(res => { video.onseeked = res; video.currentTime = Math.min(t, video.duration - 0.05); });
-    out.push({ src: frameToCanvas(video, video.videoWidth, video.videoHeight), included: true });
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const t = video.duration * i / n;
+      await new Promise(res => {
+        video.onseeked = res;
+        // 夾 ≥0：極短影片 duration-0.05 會變負數，部分瀏覽器直接丟 DOMException
+        video.currentTime = Math.max(0, Math.min(t, video.duration - 0.05));
+      });
+      out.push({ src: frameToCanvas(video, video.videoWidth, video.videoHeight), included: true });
+    }
+    return out;
+  } finally {
+    URL.revokeObjectURL(url); // 失敗路徑也要釋放，否則 object URL 洩漏
   }
-  URL.revokeObjectURL(url);
-  return out;
 }
 
 function imageToCanvas(file) {
@@ -286,6 +317,7 @@ function schedulePipeline() {
 function runPipeline() {
   const included = frames.filter(f => f.included);
   cells = []; cellW = cellH = 0;
+  previewIdx = 0; previewDir = 1; // 幀數變動時歸零，避免預覽卡在越界索引
   if (!included.length) { updateInfo(); return; }
 
   const matte = document.getElementById('spMatte').checked;
@@ -449,10 +481,15 @@ function buildSheet() {
 function downloadSheet() {
   const sheet = buildSheet();
   if (!sheet) return;
-  const a = document.createElement('a');
-  a.download = `sprite-sheet-${cells.length}x-${cellW}x${cellH}.png`;
-  a.href = sheet.toDataURL('image/png');
-  a.click();
+  // toBlob 而非 toDataURL：24 幀×512 格高的 sheet 轉 Base64 字串會吃掉數十 MB
+  sheet.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `sprite-sheet-${cells.length}x-${cellW}x${cellH}.png`;
+    a.href = url;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, 'image/png');
 }
 
 function copyCss() {
