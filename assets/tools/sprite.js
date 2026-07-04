@@ -251,11 +251,15 @@ async function extractFrames(file, n) {
     const out = [];
     for (let i = 0; i < n; i++) {
       const t = video.duration * i / n;
-      await new Promise(res => {
-        video.onseeked = res;
-        // 夾 ≥0：極短影片 duration-0.05 會變負數，部分瀏覽器直接丟 DOMException
-        video.currentTime = Math.max(0, Math.min(t, video.duration - 0.05));
-      });
+      // 夾 ≥0：極短影片 duration-0.05 會變負數，部分瀏覽器直接丟 DOMException
+      const target = Math.max(0, Math.min(t, video.duration - 0.05));
+      // 設同值 currentTime 部分瀏覽器不觸發 seeked（首幀 t=0 必踩），已在位就直接擷取
+      if (Math.abs(video.currentTime - target) > 0.01) {
+        await new Promise(res => {
+          video.onseeked = res;
+          video.currentTime = target;
+        });
+      }
       out.push({ src: frameToCanvas(video, video.videoWidth, video.videoHeight), included: true });
     }
     return out;
@@ -342,21 +346,24 @@ function runPipeline() {
     return { canvas: c, ...m };
   });
 
-  // 2) 決定 cell 尺寸（原始像素座標系）
+  // 2) 決定 cell 尺寸（原始像素座標系）——只用非空幀計算，
+  //    空幀仍輸出空白 cell 保住動畫節奏
   //    對位：以質心為中心，取所有幀的最大半徑；不對位：取聯集 bbox
+  const nonEmpties = measured.filter(m => !m.isEmpty);
+  if (!nonEmpties.length) { updateInfo(); return; }
   let srcW, srcH;
   if (align) {
     let rx = 0, ry = 0;
-    for (const m of measured) {
+    for (const m of nonEmpties) {
       rx = Math.max(rx, m.cx - m.x0, m.x1 - m.cx);
       ry = Math.max(ry, m.cy - m.y0, m.y1 - m.cy);
     }
     srcW = rx * 2; srcH = ry * 2;
   } else {
-    const x0 = Math.min(...measured.map(m => m.x0));
-    const y0 = Math.min(...measured.map(m => m.y0));
-    const x1 = Math.max(...measured.map(m => m.x1));
-    const y1 = Math.max(...measured.map(m => m.y1));
+    const x0 = Math.min(...nonEmpties.map(m => m.x0));
+    const y0 = Math.min(...nonEmpties.map(m => m.y0));
+    const x1 = Math.max(...nonEmpties.map(m => m.x1));
+    const y1 = Math.max(...nonEmpties.map(m => m.y1));
     srcW = x1 - x0; srcH = y1 - y0;
     measured.forEach(m => { m.cx = (x0 + x1) / 2; m.cy = (y0 + y1) / 2; }); // 共用中心
   }
@@ -380,6 +387,7 @@ function runPipeline() {
     cells.push(c);
   }
   updateInfo();
+  startPreviewLoop(); // 迴圈只在有 cells 時跑，這裡是（重新）啟動點
 }
 
 // 白底 un-blend：假設像素 = 前景×α + 白×(1-α)，以 min(r,g,b) 反解 α，
@@ -409,8 +417,12 @@ function measure(im, w, h) {
       if (y < y0) y0 = y; if (y > y1) y1 = y;
     }
   }
-  if (!sum) return { cx: w / 2, cy: h / 2, x0: 0, y0: 0, x1: w, y1: h };
-  return { cx: sx / sum, cy: sy / sum, x0, y0, x1: x1 + 1, y1: y1 + 1 };
+  // 空幀（去背後全透明）標記 isEmpty 並收斂成點：不能 fallback 成整張畫布，
+  // 否則會把聯集 bbox/對位半徑撐到最大，正常幀被縮到幾乎看不見
+  if (!sum) {
+    return { cx: w / 2, cy: h / 2, x0: w / 2, y0: h / 2, x1: w / 2, y1: h / 2, isEmpty: true };
+  }
+  return { cx: sx / sum, cy: sy / sum, x0, y0, x1: x1 + 1, y1: y1 + 1, isEmpty: false };
 }
 
 function updateInfo() {
@@ -422,9 +434,13 @@ function updateInfo() {
 
 // ── 預覽 ─────────────────────────────────────────────────────────────────────
 
+// 只在有 cells 時運轉，無幀時不佔 CPU；runPipeline 產出後會重新啟動
 function startPreviewLoop() {
   stopPreviewLoop();
+  if (!cells.length) { drawPreview(); return; } // 畫一次空狀態（清掉舊畫面）即停
   const tick = () => {
+    // 途中被清空（全剔除）：清畫面後自停
+    if (!cells.length) { drawPreview(); stopPreviewLoop(); return; }
     drawPreview();
     const fps = parseInt(document.getElementById('spFps')?.value || 10);
     previewTimer = setTimeout(tick, 1000 / fps);
@@ -454,17 +470,26 @@ function drawPreview() {
   const ctx = cvs.getContext('2d');
   const bg = document.getElementById('spBg').value;
   if (bg === 'checker') {
-    for (let y = 0; y < cvs.height; y += 16) {
-      for (let x = 0; x < cvs.width; x += 16) {
-        ctx.fillStyle = ((x + y) / 16) % 2 ? '#d5d5d5' : '#efefef';
-        ctx.fillRect(x, y, 16, 16);
-      }
-    }
+    // pattern 一次鋪滿，取代每幀上千次 fillRect；tile 快取、pattern 每次由當前 ctx 建立
+    ctx.fillStyle = ctx.createPattern(checkerTile(), 'repeat');
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
   } else {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, cvs.width, cvs.height);
   }
   ctx.drawImage(cell, 0, 0);
+}
+
+let checkerTileCanvas = null;
+function checkerTile() {
+  if (!checkerTileCanvas) {
+    checkerTileCanvas = document.createElement('canvas');
+    checkerTileCanvas.width = 32; checkerTileCanvas.height = 32;
+    const p = checkerTileCanvas.getContext('2d');
+    p.fillStyle = '#efefef'; p.fillRect(0, 0, 32, 32);
+    p.fillStyle = '#d5d5d5'; p.fillRect(0, 0, 16, 16); p.fillRect(16, 16, 16, 16);
+  }
+  return checkerTileCanvas;
 }
 
 // ── 匯出 ─────────────────────────────────────────────────────────────────────
@@ -483,6 +508,7 @@ function downloadSheet() {
   if (!sheet) return;
   // toBlob 而非 toDataURL：24 幀×512 格高的 sheet 轉 Base64 字串會吃掉數十 MB
   sheet.toBlob(blob => {
+    if (!blob) { alert('產圖失敗：可能超出瀏覽器 canvas 尺寸上限或記憶體不足'); return; }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.download = `sprite-sheet-${cells.length}x-${cellW}x${cellH}.png`;
