@@ -11,6 +11,8 @@ let previewTimer = null;
 let previewIdx = 0;
 let previewDir = 1;
 let pipelineTimer = null;
+let extractTimer = null;
+let extractionId = 0;  // 抽幀任務世代標記：慢任務完成時若已過期就丟棄，防競態
 
 export function template() {
   return `
@@ -105,8 +107,11 @@ export async function init() {
   fileInput.addEventListener('change', e => loadFiles(e.target.files));
 
   const rerun = () => schedulePipeline();
-  bindSlider('spCount', 'spCountVal', async () => {
-    if (videoFile) { frames = await extractFrames(videoFile, count()); renderStrip(); schedulePipeline(); }
+  // 拖滑桿會連續觸發，抽幀又慢：debounce + 世代標記，只留最後一次的結果
+  bindSlider('spCount', 'spCountVal', () => {
+    if (!videoFile) return;
+    clearTimeout(extractTimer);
+    extractTimer = setTimeout(reExtract, 300);
   });
   bindSlider('spLo', 'spLoVal', rerun);
   bindSlider('spHi', 'spHiVal', rerun);
@@ -125,17 +130,40 @@ export async function init() {
   startPreviewLoop();
   return () => {           // cleanup
     stopPreviewLoop();
+    abortPending();
     frames = []; cells = []; videoFile = null;
   };
 }
 
 export function reset() {
   stopPreviewLoop();
+  abortPending();
   frames = []; cells = []; videoFile = null; cellW = cellH = 0;
   document.getElementById('spWork').style.display = 'none';
   document.getElementById('spStrip').innerHTML = '';
   document.getElementById('spFileInput').value = '';
   startPreviewLoop();
+}
+
+// 讓進行中/排程中的非同步工作全部失效（切工具、重置、換檔案時呼叫）
+function abortPending() {
+  extractionId++;
+  clearTimeout(extractTimer);
+  clearTimeout(pipelineTimer);
+}
+
+async function reExtract() {
+  const id = ++extractionId;
+  try {
+    const extracted = await extractFrames(videoFile, count());
+    if (id !== extractionId) return; // 已有更新的任務或已重置，丟棄
+    frames = extracted;
+    renderStrip();
+    schedulePipeline();
+  } catch (err) {
+    console.error(err);
+    if (id === extractionId) alert('抽幀失敗：' + (err.message || '未知錯誤'));
+  }
 }
 
 // ── 輸入 ─────────────────────────────────────────────────────────────────────
@@ -149,10 +177,14 @@ async function loadFiles(fileList) {
   try {
     if (files[0].type.startsWith('video/')) {
       videoFile = files[0];
-      frames = await extractFrames(videoFile, count());
+      const id = ++extractionId; // 換新檔案：讓進行中的舊抽幀失效
+      const extracted = await extractFrames(videoFile, count());
+      if (id !== extractionId) return;
+      frames = extracted;
       document.getElementById('spExtractWrap').style.display = '';
     } else {
       videoFile = null;
+      extractionId++; // 改餵圖片序列：同樣廢止進行中的影片抽幀
       document.getElementById('spExtractWrap').style.display = 'none';
       const imgs = files.filter(f => f.type.startsWith('image/'))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
@@ -180,11 +212,16 @@ async function extractFrames(file, n) {
     video.onloadedmetadata = res;
     video.onerror = () => rej(new Error('影片載入失敗'));
   });
-  // 部分瀏覽器 metadata 後尚不能 seek 繪圖，先等首幀可用
-  await new Promise(res => {
+  // 部分瀏覽器 metadata 後尚不能 seek 繪圖，先等首幀可用；
+  // 這裡也要掛 onerror，否則解碼失敗會讓 Promise 永遠懸置
+  await new Promise((res, rej) => {
     if (video.readyState >= 2) return res();
     video.oncanplay = res;
+    video.onerror = () => rej(new Error('影片解碼失敗'));
   });
+  if (!isFinite(video.duration) || video.duration <= 0) {
+    throw new Error('無法取得影片長度');
+  }
 
   const out = [];
   for (let i = 0; i < n; i++) {
@@ -206,11 +243,14 @@ function imageToCanvas(file) {
   });
 }
 
-// 進場統一縮到最長邊 ≤1024：輸出格高上限 512，保留餘裕即可，處理管線快很多
+// 進場統一縮到最長邊 ≤1024：輸出格高上限 512，保留餘裕即可，處理管線快很多。
+// w/h 可能為 0（影片未就緒、圖片損壞），夾到 ≥1 避免 0 尺寸 canvas 炸 drawImage
 function frameToCanvas(source, w, h) {
+  w = Math.max(1, w || 1); h = Math.max(1, h || 1);
   const scale = Math.min(1, 1024 / Math.max(w, h));
   const c = document.createElement('canvas');
-  c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+  c.width = Math.max(1, Math.round(w * scale));
+  c.height = Math.max(1, Math.round(h * scale));
   c.getContext('2d').drawImage(source, 0, 0, c.width, c.height);
   return c;
 }
@@ -253,7 +293,9 @@ function runPipeline() {
   const lo = parseFloat(document.getElementById('spLo').value);
   const hi = Math.max(parseFloat(document.getElementById('spHi').value), lo + 0.01);
   const targetH = parseInt(document.getElementById('spCellH').value);
-  const pad = parseInt(document.getElementById('spPad').value) || 0;
+  // pad 夾在格高一半以下，否則 targetH - pad*2 ≤ 0 會讓 scale 歸零炸 drawImage
+  const rawPad = parseInt(document.getElementById('spPad').value) || 0;
+  const pad = Math.min(Math.max(0, rawPad), Math.floor(targetH / 2) - 1);
 
   // 1) 去背 + 逐幀量測（bbox 與質心）
   const measured = included.map(f => {
