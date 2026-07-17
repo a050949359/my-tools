@@ -46,7 +46,8 @@ export function reset() {
 }
 
 function destroyApp() {
-  if (app) { app.destroy(); app = null; }
+  if (app && typeof app.destroy === 'function') app.destroy();
+  app = null;
 }
 
 function loadLib() {
@@ -60,6 +61,9 @@ function loadLib() {
 }
 
 async function render() {
+  const btn = document.getElementById('oaRenderBtn');
+  if (btn.disabled) return;
+
   const url = document.getElementById('oaUrl').value.trim();
   const content = document.getElementById('oaContent').value.trim();
   if (!url && !content) { alert('請輸入規格網址，或貼上 / 上傳規格內容'); return; }
@@ -68,7 +72,6 @@ async function render() {
     ? { content }
     : { url, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
 
-  const btn = document.getElementById('oaRenderBtn');
   btn.disabled = true;
   try {
     await loadLib();
