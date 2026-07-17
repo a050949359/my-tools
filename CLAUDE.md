@@ -143,7 +143,7 @@ function loadLib() {
 | `sprite` | 精靈圖工作台 | 圖片工具 | 影片/幀序列 → 抽幀 → 白底去背（un-blend 反解 alpha，保留半透明光暈）→ 質心對位 → sprite sheet PNG + CSS `steps()` 片段 + JSON；幀可點擊剔除、即時動畫預覽（棋盤/深/淺底、來回播放）；零依賴純 canvas | ✓ | ✓ `#spSheetBtn` |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` |
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 |
-| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地、延遲載入）渲染 OpenAPI/Swagger 文件；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案 | ✓ | ✓ `#oaRenderBtn` |
+| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL）；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案 | ✓ | ✓ `#oaRenderBtn` |
 
 ---
 
