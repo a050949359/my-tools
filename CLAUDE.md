@@ -26,7 +26,8 @@ my-tools/
 │   ├── mermaid.min.js      # Mermaid 圖表函式庫（本地，~3MB，延遲載入）
 │   ├── katex/              # KaTeX 數學公式（min.js + min.css + fonts/，延遲載入）
 │   ├── highlight.min.js    # highlight.js 程式碼語法高亮（本地，延遲載入）
-│   └── highlight-github.min.css # highlight.js GitHub 主題
+│   ├── highlight-github.min.css # highlight.js GitHub 主題
+│   └── scalar.standalone.min.js # Scalar API Reference（本地，~3.6MB，延遲載入，v1.62.9）
 ├── DESIGN.md               # Design Token（色彩、字型、間距）
 └── CLAUDE.md               # 本文件
 ```
@@ -142,6 +143,7 @@ function loadLib() {
 | `sprite` | 精靈圖工作台 | 圖片工具 | 影片/幀序列 → 抽幀 → 白底去背（un-blend 反解 alpha，保留半透明光暈）→ 質心對位 → sprite sheet PNG + CSS `steps()` 片段 + JSON；幀可點擊剔除、即時動畫預覽（棋盤/深/淺底、來回播放）；零依賴純 canvas | ✓ | ✓ `#spSheetBtn` |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` |
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 |
+| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地、延遲載入）渲染 OpenAPI/Swagger 文件；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案 | ✓ | ✓ `#oaRenderBtn` |
 
 ---
 
