@@ -37,6 +37,7 @@ const TOOL_GROUPS = [
       { id: 'json',     label: 'JSON 格式化',     src: './tools/json.js'     },
       { id: 'regex',    label: 'Regex 測試器',    src: './tools/regex.js'    },
       { id: 'markdown', label: 'Markdown 預覽',   src: './tools/markdown.js' },
+      { id: 'openapi',  label: 'OpenAPI 文件檢視', src: './tools/openapi.js'  },
     ]
   },
 ];
