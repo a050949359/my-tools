@@ -1,6 +1,6 @@
 export function template() {
   return `
-    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。版面配置可選現代（Scalar 側欄）或經典（類似傳統 Swagger UI）。下載 HTML 時可另外選擇用 Swagger UI 原始 JS 渲染（透過 CDN 載入）。</p>
+    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面（固定現代版面）。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。下載 HTML 時可另外選擇引擎與版面配置。</p>
     <div class="grid-2">
       <div><label>OpenAPI 規格網址:</label>
         <input type="url" id="oaUrl" placeholder="https://example.com/openapi.json">
@@ -9,14 +9,6 @@ export function template() {
         <label style="display:flex;align-items:center;gap:7px;margin:0;">
           <input type="checkbox" id="oaProxy" checked> 透過 Scalar CORS Proxy 讀取網址
         </label>
-      </div>
-    </div>
-    <div class="grid-2">
-      <div><label>版面配置:</label>
-        <select id="oaLayout">
-          <option value="modern">現代（Scalar 側欄）</option>
-          <option value="classic">經典（類似 Swagger UI）</option>
-        </select>
       </div>
     </div>
     <div><label>或貼上規格內容 (JSON / YAML):</label>
@@ -28,9 +20,15 @@ export function template() {
     </div>
     <div class="button-row">
       <button id="oaRenderBtn" data-primary>在新分頁開啟文件</button>
+    </div>
+    <div class="button-row" style="margin-top:10px;">
       <select id="oaExportEngine" title="匯出的 HTML 要用哪個引擎渲染">
         <option value="scalar">Scalar</option>
         <option value="swagger">Swagger UI（原始 JS）</option>
+      </select>
+      <select id="oaLayout" title="僅 Scalar 引擎適用的版面配置">
+        <option value="modern">現代（Scalar 側欄）</option>
+        <option value="classic">經典（類似 Swagger UI）</option>
       </select>
       <button id="oaExportBtn">⬇ 下載 HTML</button>
     </div>
@@ -47,6 +45,8 @@ export function init() {
   fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
   document.getElementById('oaRenderBtn').addEventListener('click', openViewer);
   document.getElementById('oaExportBtn').addEventListener('click', exportHtml);
+  document.getElementById('oaExportEngine').addEventListener('change', updateLayoutVisibility);
+  updateLayoutVisibility();
 }
 
 export function reset() {
@@ -54,6 +54,13 @@ export function reset() {
   document.getElementById('oaContent').value = '';
   document.getElementById('oaLayout').value = 'modern';
   document.getElementById('oaExportEngine').value = 'scalar';
+  updateLayoutVisibility();
+}
+
+// 版面配置僅 Scalar 引擎適用，選 Swagger UI 時隱藏
+function updateLayoutVisibility() {
+  const isScalar = document.getElementById('oaExportEngine').value === 'scalar';
+  document.getElementById('oaLayout').hidden = !isScalar;
 }
 
 // jsDelivr 上與本地函式庫相同版本，供匯出的獨立 HTML 使用
@@ -68,8 +75,7 @@ function readInputs() {
   return { url, content };
 }
 
-function buildScalarHtml(libSrc, inputs) {
-  const layout = document.getElementById('oaLayout').value;
+function buildScalarHtml(libSrc, inputs, layout) {
   const config = inputs.content
     ? { content: inputs.content, layout }
     : { url: inputs.url, layout, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
@@ -121,9 +127,9 @@ function openViewer() {
   const inputs = readInputs();
   if (!inputs) return;
 
-  // 新分頁是獨立文件，需要絕對路徑才能載到本地 bundle
+  // 新分頁是獨立文件，需要絕對路徑才能載到本地 bundle；固定用現代版面
   const libUrl = new URL('assets/scalar.standalone.min.js', location.href).href;
-  const html = buildScalarHtml(libUrl, inputs);
+  const html = buildScalarHtml(libUrl, inputs, 'modern');
 
   const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const win = window.open(blobUrl, '_blank');
@@ -139,7 +145,7 @@ function exportHtml() {
   const engine = document.getElementById('oaExportEngine').value;
   const html = engine === 'swagger'
     ? buildSwaggerHtml(SWAGGER_CDN_BUNDLE, SWAGGER_CDN_CSS, inputs)
-    : buildScalarHtml(SCALAR_CDN_URL, inputs);
+    : buildScalarHtml(SCALAR_CDN_URL, inputs, document.getElementById('oaLayout').value);
 
   const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const a = document.createElement('a');
