@@ -1,6 +1,6 @@
 export function template() {
   return `
-    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。版面配置可選現代（Scalar 側欄）或經典（類似傳統 Swagger UI）。</p>
+    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。版面配置可選現代（Scalar 側欄）或經典（類似傳統 Swagger UI）。下載 HTML 時可另外選擇用 Swagger UI 原始 JS 渲染（透過 CDN 載入）。</p>
     <div class="grid-2">
       <div><label>OpenAPI 規格網址:</label>
         <input type="url" id="oaUrl" placeholder="https://example.com/openapi.json">
@@ -28,6 +28,10 @@ export function template() {
     </div>
     <div class="button-row">
       <button id="oaRenderBtn" data-primary>在新分頁開啟文件</button>
+      <select id="oaExportEngine" title="匯出的 HTML 要用哪個引擎渲染">
+        <option value="scalar">Scalar</option>
+        <option value="swagger">Swagger UI（原始 JS）</option>
+      </select>
       <button id="oaExportBtn">⬇ 下載 HTML</button>
     </div>
   `;
@@ -49,22 +53,26 @@ export function reset() {
   document.getElementById('oaUrl').value = '';
   document.getElementById('oaContent').value = '';
   document.getElementById('oaLayout').value = 'modern';
+  document.getElementById('oaExportEngine').value = 'scalar';
 }
 
-// jsDelivr 上與本地 assets/scalar.standalone.min.js 相同版本，供匯出的獨立 HTML 使用
+// jsDelivr 上與本地函式庫相同版本，供匯出的獨立 HTML 使用
 const SCALAR_CDN_URL = 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.62.9/dist/browser/standalone.min.js';
+const SWAGGER_CDN_BUNDLE = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.10/swagger-ui-bundle.js';
+const SWAGGER_CDN_CSS = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.10/swagger-ui.css';
 
-function getConfig() {
+function readInputs() {
   const url = document.getElementById('oaUrl').value.trim();
   const content = document.getElementById('oaContent').value.trim();
   if (!url && !content) { alert('請輸入規格網址，或貼上 / 上傳規格內容'); return null; }
-  const layout = document.getElementById('oaLayout').value;
-  return content
-    ? { content, layout }
-    : { url, layout, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
+  return { url, content };
 }
 
-function buildHtml(libSrc, config) {
+function buildScalarHtml(libSrc, inputs) {
+  const layout = document.getElementById('oaLayout').value;
+  const config = inputs.content
+    ? { content: inputs.content, layout }
+    : { url: inputs.url, layout, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
   // JSON 內嵌進 <script>，把 < 轉義避免 </script> 提前斷開
   const configJson = JSON.stringify(config).replace(/</g, '\\u003c');
   return `<!doctype html>
@@ -83,13 +91,39 @@ function buildHtml(libSrc, config) {
 </html>`;
 }
 
+// Swagger UI 原始 JS（swagger-ui-dist 的 SwaggerUIBundle，不含 standalone preset 的搜尋列，因為輸入介面已由本工具提供）
+function buildSwaggerHtml(bundleSrc, cssSrc, inputs) {
+  const urlJson = JSON.stringify(inputs.url || '').replace(/</g, '\\u003c');
+  const contentJson = JSON.stringify(inputs.content || '').replace(/</g, '\\u003c');
+  return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAPI 文件 — Swagger UI</title>
+<link rel="stylesheet" href="${cssSrc}">
+<style>body{margin:0;}</style>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="${bundleSrc}"><\/script>
+<script>
+  var content = ${contentJson};
+  var specUrl = ${urlJson};
+  if (content) { specUrl = URL.createObjectURL(new Blob([content], { type: 'text/plain' })); }
+  SwaggerUIBundle({ url: specUrl, dom_id: '#swagger-ui', presets: [SwaggerUIBundle.presets.apis], layout: 'BaseLayout' });
+<\/script>
+</body>
+</html>`;
+}
+
 function openViewer() {
-  const config = getConfig();
-  if (!config) return;
+  const inputs = readInputs();
+  if (!inputs) return;
 
   // 新分頁是獨立文件，需要絕對路徑才能載到本地 bundle
   const libUrl = new URL('assets/scalar.standalone.min.js', location.href).href;
-  const html = buildHtml(libUrl, config);
+  const html = buildScalarHtml(libUrl, inputs);
 
   const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const win = window.open(blobUrl, '_blank');
@@ -98,11 +132,14 @@ function openViewer() {
 }
 
 function exportHtml() {
-  const config = getConfig();
-  if (!config) return;
+  const inputs = readInputs();
+  if (!inputs) return;
 
   // 匯出檔改用 CDN 載入函式庫（而非本地絕對路徑），下載後在任何地方開都能連到函式庫
-  const html = buildHtml(SCALAR_CDN_URL, config);
+  const engine = document.getElementById('oaExportEngine').value;
+  const html = engine === 'swagger'
+    ? buildSwaggerHtml(SWAGGER_CDN_BUNDLE, SWAGGER_CDN_CSS, inputs)
+    : buildScalarHtml(SCALAR_CDN_URL, inputs);
 
   const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const a = document.createElement('a');
