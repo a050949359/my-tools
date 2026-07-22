@@ -1,6 +1,6 @@
 export function template() {
   return `
-    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。</p>
+    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。版面配置可選現代（Scalar 側欄）或經典（類似傳統 Swagger UI）。</p>
     <div class="grid-2">
       <div><label>OpenAPI 規格網址:</label>
         <input type="url" id="oaUrl" placeholder="https://example.com/openapi.json">
@@ -9,6 +9,14 @@ export function template() {
         <label style="display:flex;align-items:center;gap:7px;margin:0;">
           <input type="checkbox" id="oaProxy" checked> 透過 Scalar CORS Proxy 讀取網址
         </label>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div><label>版面配置:</label>
+        <select id="oaLayout">
+          <option value="modern">現代（Scalar 側欄）</option>
+          <option value="classic">經典（類似 Swagger UI）</option>
+        </select>
       </div>
     </div>
     <div><label>或貼上規格內容 (JSON / YAML):</label>
@@ -40,6 +48,7 @@ export function init() {
 export function reset() {
   document.getElementById('oaUrl').value = '';
   document.getElementById('oaContent').value = '';
+  document.getElementById('oaLayout').value = 'modern';
 }
 
 // jsDelivr 上與本地 assets/scalar.standalone.min.js 相同版本，供匯出的獨立 HTML 使用
@@ -49,9 +58,10 @@ function getConfig() {
   const url = document.getElementById('oaUrl').value.trim();
   const content = document.getElementById('oaContent').value.trim();
   if (!url && !content) { alert('請輸入規格網址，或貼上 / 上傳規格內容'); return null; }
+  const layout = document.getElementById('oaLayout').value;
   return content
-    ? { content }
-    : { url, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
+    ? { content, layout }
+    : { url, layout, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
 }
 
 function buildHtml(libSrc, config) {
