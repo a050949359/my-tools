@@ -38,6 +38,7 @@ const TOOL_GROUPS = [
       { id: 'regex',    label: 'Regex 測試器',    src: './tools/regex.js'    },
       { id: 'markdown', label: 'Markdown 預覽',   src: './tools/markdown.js' },
       { id: 'openapi',  label: 'OpenAPI 文件檢視', src: './tools/openapi.js'  },
+      { id: 'dbml',     label: 'DBML → ER 圖',    src: './tools/dbml.js'     },
     ]
   },
 ];

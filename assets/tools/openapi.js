@@ -18,7 +18,10 @@ export function template() {
       拖曳 .json / .yaml / .yml 檔案到這裡，或點擊選擇檔案
       <input type="file" id="oaFileInput" accept=".json,.yaml,.yml,application/json" hidden>
     </div>
-    <button id="oaRenderBtn" data-primary>在新分頁開啟文件</button>
+    <div class="button-row">
+      <button id="oaRenderBtn" data-primary>在新分頁開啟文件</button>
+      <button id="oaExportBtn">⬇ 下載 HTML</button>
+    </div>
   `;
 }
 
@@ -31,6 +34,7 @@ export function init() {
   dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); loadFile(e.dataTransfer.files[0]); });
   fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
   document.getElementById('oaRenderBtn').addEventListener('click', openViewer);
+  document.getElementById('oaExportBtn').addEventListener('click', exportHtml);
 }
 
 export function reset() {
@@ -38,21 +42,22 @@ export function reset() {
   document.getElementById('oaContent').value = '';
 }
 
-function openViewer() {
+// jsDelivr 上與本地 assets/scalar.standalone.min.js 相同版本，供匯出的獨立 HTML 使用
+const SCALAR_CDN_URL = 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.62.9/dist/browser/standalone.min.js';
+
+function getConfig() {
   const url = document.getElementById('oaUrl').value.trim();
   const content = document.getElementById('oaContent').value.trim();
-  if (!url && !content) { alert('請輸入規格網址，或貼上 / 上傳規格內容'); return; }
-
-  const config = content
+  if (!url && !content) { alert('請輸入規格網址，或貼上 / 上傳規格內容'); return null; }
+  return content
     ? { content }
     : { url, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
+}
 
-  // 新分頁是獨立文件，需要絕對路徑才能載到本地 bundle
-  const libUrl = new URL('assets/scalar.standalone.min.js', location.href).href;
+function buildHtml(libSrc, config) {
   // JSON 內嵌進 <script>，把 < 轉義避免 </script> 提前斷開
   const configJson = JSON.stringify(config).replace(/</g, '\\u003c');
-
-  const html = `<!doctype html>
+  return `<!doctype html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
@@ -62,15 +67,39 @@ function openViewer() {
 </head>
 <body>
 <div id="app"></div>
-<script src="${libUrl}"><\/script>
+<script src="${libSrc}"><\/script>
 <script>Scalar.createApiReference('#app', ${configJson});<\/script>
 </body>
 </html>`;
+}
+
+function openViewer() {
+  const config = getConfig();
+  if (!config) return;
+
+  // 新分頁是獨立文件，需要絕對路徑才能載到本地 bundle
+  const libUrl = new URL('assets/scalar.standalone.min.js', location.href).href;
+  const html = buildHtml(libUrl, config);
 
   const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const win = window.open(blobUrl, '_blank');
   if (!win) { alert('新分頁被瀏覽器攔截，請允許此網站開啟彈出視窗'); URL.revokeObjectURL(blobUrl); }
   // 不立即 revoke：保留 blob URL 讓新分頁重新整理時仍可載入
+}
+
+function exportHtml() {
+  const config = getConfig();
+  if (!config) return;
+
+  // 匯出檔改用 CDN 載入函式庫（而非本地絕對路徑），下載後在任何地方開都能連到函式庫
+  const html = buildHtml(SCALAR_CDN_URL, config);
+
+  const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = 'openapi-doc.html';
+  a.click();
+  URL.revokeObjectURL(blobUrl);
 }
 
 function loadFile(file) {
