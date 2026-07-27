@@ -12,6 +12,7 @@ my-tools/
 ├── assets/
 │   ├── app.js              # 路由、sidebar、header 渲染
 │   ├── styles.css          # 全域樣式（Design Token + 元件）
+│   ├── mcp-bridge.js       # 給外部 AI agent 呼叫的 postMessage 橋接（見下方「MCP / Headless 呼叫」）
 │   ├── tools/              # 每個工具一個獨立模組
 │   │   ├── text.js
 │   │   ├── image.js
@@ -72,6 +73,37 @@ export function reset() { /* 清空狀態，header 會自動出現「↺ 重置�
 
 沒有明確主要動作的工具（如自動觸發型）不加，▶ 執行 就不顯示。
 
+### 4.（選用）加 headless 呼叫入口
+
+工具的實際邏輯若已經是**不碰 DOM 的純函式**（輸入參數 → 回傳結果，失敗用 `throw`），可以另外 export：
+
+```js
+export async function runHeadless(action, params) {
+  if (action !== 'myAction') throw new Error(`unknown action: ${action}`);
+  const { ...params } = params || {};
+  return myPureFn(...); // 跟 UI handler 呼叫同一份純函式，不要複製一份邏輯
+}
+```
+
+加了這個 export,`assets/mcp-bridge.js` 就會自動讓外部（目前是 Photopea MCP prototype 的 Chrome extension）能透過 postMessage 呼叫這個工具，不用改 `app.js` 或這個工具的其他部分。沒加的工具，外部呼叫會收到明確的「尚未支援 headless」錯誤，不影響 UI 使用。
+
+---
+
+## MCP / Headless 呼叫（給外部 AI agent 用）
+
+`assets/mcp-bridge.js` 監聽 `window.addEventListener('message', ...)`，接受格式：
+
+```
+請求: { mcp: true, id, tool, action, params }
+回應: { mcp: true, id, result } 或 { mcp: true, id, error: { message } }
+```
+
+動態 `import('./tools/<tool>.js')` 後呼叫該模組的 `runHeadless(action, params)`（若有）。目前只有 `svg` 支援（`action: 'convert'`，`params: { svg, width, height, bg, transparent }`）。
+
+安全性：只檢查 `event.origin` 是否為 `chrome-extension://` 開頭，濾掉一般網頁把本站嵌 iframe 亂送訊息的情況；**不是**真正的存取控制（本站是公開靜態站沒有祕密），也刻意不做 token（公開 repo 裡藏不住）。
+
+呼叫端實作在另一個 repo:`collaboration-with-AI` 的 `tmp/photopea-mcp-prototype/extension`(Chrome extension，offscreen document 裡嵌 `<iframe src="https://a050949359.github.io/my-tools/">`)。
+
 ---
 
 ## app.js 運作方式
@@ -130,21 +162,21 @@ function loadLib() {
 
 ## 現有工具一覽
 
-| ID | 名稱 | 分類 | 主要功能 | reset | data-primary |
-|---|---|---|---|---|---|
-| `text` | 文字轉換 | 文字工具 | `\uXXXX` / JSON 解析 | ✗ | ✓ `#convertBtn` |
-| `image` | 圖片 → Base64 | 圖片工具 | 圖片轉 Base64 data URL | ✗ | ✗ 自動觸發 |
-| `placeholder` | Placeholder 生成 | 圖片工具 | 即時產生占位圖 | ✗ | ✗ 自動觸發 |
-| `svg` | SVG → PNG | 圖片工具 | SVG 轉 PNG，可設尺寸背景 | ✗ | ✓ `#svgConvertBtn` |
-| `heic` | HEIC → PNG | 圖片工具 | HEIC/HEIF 轉 PNG | ✗ | ✓ `#heicConvertBtn` |
-| `imageBrowser` | 本地圖片瀏覽器 | 圖片工具 | File System Access API 瀏覽本地大量圖片（虛擬牆 + Worker 縮圖）；反解 RPG Maker MV/MZ 加密圖（XOR）；純瀏覽不匯出、防手滑鎖、責任聲明 | ✗ | ✓ `#ibPick` |
-| `imageTracer` | 圖片 → SVG 描邊 | 圖片工具 | ImageTracer.js（本地、延遲載入）點陣圖向量化成 SVG；預設風格 + 色數/去躁/模糊滑桿、原圖對照、路徑數統計、下載/複製；可「→ 加互動連結」交接給熱區工具 | ✓ | ✓ `#itRunBtn` |
-| `imageHotspot` | SVG 互動熱區 | 圖片工具 | 貼上/上傳/交接 SVG，在圖上點選或框選一群 path、或拉矩形熱區，綁超連結 href；兩種匯出:①描邊版(path 包 `<a>`)②原圖內嵌版(原圖 `<image>` 當底+path 群轉外框 rect，原圖清晰);透明可點不填滿、`rel=noopener` | ✓ | ✓ `#hsLoad` |
-| `sprite` | 精靈圖工作台 | 圖片工具 | 影片/幀序列 → 抽幀 → 白底去背（un-blend 反解 alpha，保留半透明光暈）→ 質心對位 → sprite sheet PNG + CSS `steps()` 片段 + JSON；幀可點擊剔除、即時動畫預覽（棋盤/深/淺底、來回播放）；零依賴純 canvas | ✓ | ✓ `#spSheetBtn` |
-| `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` |
-| `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 |
-| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟） | ✓ | ✓ `#oaRenderBtn` |
-| `dbml` | DBML → ER 圖 | 開發者工具 | 零依賴自製 DBML parser（Table/Column/Enum/Ref/TableGroup，含欄位內 `ref:` 簡寫）+ 自製 SVG 力導向自動排版，即時渲染 ER 關聯圖；可拖曳表格、滾輪縮放、拖曳平移、hover 高亮關聯、下載 SVG/PNG、複製 SVG 原始碼；拖曳 `.dbml` 檔案載入 | ✓ | ✗ 自動觸發（同 markdown，debounce 即時預覽） |
+| ID | 名稱 | 分類 | 主要功能 | reset | data-primary | headless |
+|---|---|---|---|---|---|---|
+| `text` | 文字轉換 | 文字工具 | `\uXXXX` / JSON 解析 | ✗ | ✓ `#convertBtn` | ✗ |
+| `image` | 圖片 → Base64 | 圖片工具 | 圖片轉 Base64 data URL | ✗ | ✗ 自動觸發 | ✗ |
+| `placeholder` | Placeholder 生成 | 圖片工具 | 即時產生占位圖 | ✗ | ✗ 自動觸發 | ✗ |
+| `svg` | SVG → PNG | 圖片工具 | SVG 轉 PNG，可設尺寸背景 | ✗ | ✓ `#svgConvertBtn` | ✓ `convert` |
+| `heic` | HEIC → PNG | 圖片工具 | HEIC/HEIF 轉 PNG | ✗ | ✓ `#heicConvertBtn` | ✗ |
+| `imageBrowser` | 本地圖片瀏覽器 | 圖片工具 | File System Access API 瀏覽本地大量圖片（虛擬牆 + Worker 縮圖）；反解 RPG Maker MV/MZ 加密圖（XOR）；純瀏覽不匯出、防手滑鎖、責任聲明 | ✗ | ✓ `#ibPick` | ✗ |
+| `imageTracer` | 圖片 → SVG 描邊 | 圖片工具 | ImageTracer.js（本地、延遲載入）點陣圖向量化成 SVG；預設風格 + 色數/去躁/模糊滑桿、原圖對照、路徑數統計、下載/複製；可「→ 加互動連結」交接給熱區工具 | ✓ | ✓ `#itRunBtn` | ✗ |
+| `imageHotspot` | SVG 互動熱區 | 圖片工具 | 貼上/上傳/交接 SVG，在圖上點選或框選一群 path、或拉矩形熱區，綁超連結 href；兩種匯出:①描邊版(path 包 `<a>`)②原圖內嵌版(原圖 `<image>` 當底+path 群轉外框 rect，原圖清晰);透明可點不填滿、`rel=noopener` | ✓ | ✓ `#hsLoad` | ✗ |
+| `sprite` | 精靈圖工作台 | 圖片工具 | 影片/幀序列 → 抽幀 → 白底去背（un-blend 反解 alpha，保留半透明光暈）→ 質心對位 → sprite sheet PNG + CSS `steps()` 片段 + JSON；幀可點擊剔除、即時動畫預覽（棋盤/深/淺底、來回播放）；零依賴純 canvas | ✓ | ✓ `#spSheetBtn` | ✗ |
+| `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` | ✗ |
+| `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 | ✗ |
+| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟） | ✓ | ✓ `#oaRenderBtn` | ✗ |
+| `dbml` | DBML → ER 圖 | 開發者工具 | 零依賴自製 DBML parser（Table/Column/Enum/Ref/TableGroup，含欄位內 `ref:` 簡寫）+ 自製 SVG 力導向自動排版，即時渲染 ER 關聯圖；可拖曳表格、滾輪縮放、拖曳平移、hover 高亮關聯、下載 SVG/PNG、複製 SVG 原始碼；拖曳 `.dbml` 檔案載入 | ✓ | ✗ 自動觸發（同 markdown，debounce 即時預覽） | ✗ |
 
 ---
 

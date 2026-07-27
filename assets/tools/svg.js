@@ -54,36 +54,56 @@ function loadFile(file) {
   reader.readAsText(file);
 }
 
-function convert() {
-  const svgCode = document.getElementById('svgInput').value.trim();
-  if (!svgCode) { alert('請輸入 SVG 代碼或上傳 SVG 檔案'); return; }
-  if (!svgCode.includes('<svg')) { alert('輸入的內容似乎不是有效的 SVG 代碼'); return; }
+// 純函式:不碰 DOM,失敗一律 throw(給 UI 的 convert() 和 headless 呼叫共用同一份邏輯)
+function renderSvgToPng(svg, width, height, bg, transparent) {
+  svg = (svg || '').trim();
+  if (!svg) return Promise.reject(new Error('請輸入 SVG 代碼或上傳 SVG 檔案'));
+  if (!svg.includes('<svg')) return Promise.reject(new Error('輸入的內容似乎不是有效的 SVG 代碼'));
 
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = width; canvas.height = height;
+    if (!transparent) { ctx.fillStyle = bg; ctx.fillRect(0, 0, width, height); }
+
+    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const scale = Math.min(width / img.width, height / img.height);
+      const sw = img.width * scale, sh = img.height * scale;
+      ctx.drawImage(img, (width - sw) / 2, (height - sh) / 2, sw, sh);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG 載入失敗，請檢查 SVG 代碼是否正確')); };
+    img.src = url;
+  });
+}
+
+// Headless 入口(給 mcp-bridge.js 呼叫),不碰 DOM,直接回傳/丟出結果
+export async function runHeadless(action, params) {
+  if (action !== 'convert') throw new Error(`svg: unknown action "${action}"`);
+  const { svg, width = 800, height = 600, bg = '#ffffff', transparent = false } = params || {};
+  return renderSvgToPng(svg, width, height, bg, transparent);
+}
+
+async function convert() {
+  const svgCode = document.getElementById('svgInput').value;
   const w = parseInt(document.getElementById('svgWidth').value) || 800;
   const h = parseInt(document.getElementById('svgHeight').value) || 600;
   const bg = document.getElementById('svgBg').value;
   const transparent = document.getElementById('svgTransparent').checked;
 
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = w; canvas.height = h;
-  if (!transparent) { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); }
-
-  const url = URL.createObjectURL(new Blob([svgCode], { type: 'image/svg+xml;charset=utf-8' }));
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    const scale = Math.min(w / img.width, h / img.height);
-    const sw = img.width * scale, sh = img.height * scale;
-    ctx.drawImage(img, (w - sw) / 2, (h - sh) / 2, sw, sh);
-    pngDataURL = canvas.toDataURL('image/png');
-    document.getElementById('svgPreview').src = pngDataURL;
-    document.getElementById('svgPreviewContainer').style.display = 'block';
-    document.getElementById('svgActions').style.display = 'block';
-    URL.revokeObjectURL(url);
-  };
-  img.onerror = () => { alert('SVG 載入失敗，請檢查 SVG 代碼是否正確'); URL.revokeObjectURL(url); };
-  img.src = url;
+  try {
+    pngDataURL = await renderSvgToPng(svgCode, w, h, bg, transparent);
+  } catch (e) {
+    alert(e.message);
+    return;
+  }
+  document.getElementById('svgPreview').src = pngDataURL;
+  document.getElementById('svgPreviewContainer').style.display = 'block';
+  document.getElementById('svgActions').style.display = 'block';
 }
 
 function download() {
