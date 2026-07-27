@@ -81,6 +81,13 @@ function renderSvgToPng(svg, width, height, bg, transparent) {
   });
 }
 
+// Headless 入口(給 mcp-bridge.js 呼叫),不碰 DOM,直接回傳/丟出結果
+export async function runHeadless(action, params) {
+  if (action !== 'convert') throw new Error(`svg: unknown action "${action}"`);
+  const { svg, width = 800, height = 600, bg = '#ffffff', transparent = false } = params || {};
+  return renderSvgToPng(svg, width, height, bg, transparent);
+}
+
 async function convert() {
   const svgCode = document.getElementById('svgInput').value;
   const w = parseInt(document.getElementById('svgWidth').value) || 800;
