@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P 雙向語音翻譯對講機</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <h1>🎙️ P2P 雙向語音翻譯對講機</h1>
+    <p class="muted">瀏覽器直連（WebRTC），純前端 Demo，不保證穩定與隱私，請勿用於敏感內容。</p>
+  </header>
+
+  <main class="wrap">
+
+    <section class="card">
+      <h2>1. 連線</h2>
+      <div class="id-row">
+        <span class="label">我的 ID</span>
+        <code id="myId">連線中…</code>
+        <button id="copyIdBtn" class="btn-ghost" disabled>複製</button>
+      </div>
+      <div class="connect-row">
+        <input type="text" id="peerIdInput" placeholder="輸入對方的 ID">
+        <button id="connectBtn" class="btn-primary" disabled>連線對方</button>
+      </div>
+      <p id="connStatus" class="status status-idle">尚未連線</p>
+    </section>
+
+    <section class="card">
+      <h2>2. 語言設定</h2>
+      <div class="lang-grid">
+        <label>
+          我說的語言（語音辨識）
+          <select id="mySpeakLang"></select>
+        </label>
+        <label>
+          我想聽到的語言（翻譯 + 朗讀）
+          <select id="myHearLang"></select>
+        </label>
+      </div>
+      <p class="muted small">兩邊各自選自己的語言即可，不需要跟對方喬好。</p>
+    </section>
+
+    <section class="card">
+      <h2>3. 對講</h2>
+      <div id="chatBox" class="chat-box" aria-live="polite"></div>
+      <button id="recordBtn" class="btn-record" disabled>🎤 準備中…</button>
+      <p id="recHint" class="muted small"></p>
+    </section>
+
+    <section class="card">
+      <h2>🧪 單邊自我測試（不用等對方連線）</h2>
+      <p class="muted small">連線建立前，可以先分別確認麥克風辨識、翻譯 API、朗讀語音各自能不能動。</p>
+
+      <div class="test-block">
+        <div class="test-label">語音辨識</div>
+        <p class="muted small">直接按上面「🎤」按鈕說話，未連線時辨識結果只會顯示在對話框、不會送出，可用來確認麥克風跟辨識準不準。</p>
+      </div>
+
+      <div class="test-block">
+        <div class="test-label">翻譯 API（用「我說的語言」→「我想聽到的語言」）</div>
+        <div class="test-row">
+          <input type="text" id="testTranslateInput" placeholder="輸入文字，例如：你好嗎">
+          <button id="testTranslateBtn" class="btn-ghost">測試翻譯</button>
+        </div>
+        <p id="testTranslateResult" class="muted small"></p>
+      </div>
+
+      <div class="test-block">
+        <div class="test-label">朗讀（用「我想聽到的語言」的語音）</div>
+        <div class="test-row">
+          <input type="text" id="testSpeakInput" placeholder="輸入文字測試朗讀">
+          <button id="testSpeakBtn" class="btn-ghost">測試朗讀</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card notes">
+      <h2>⚠️ 使用須知</h2>
+      <ul>
+        <li>語音辨識使用瀏覽器內建 Web Speech API，僅支援 Chrome / Edge（桌面與 Android），語音內容會送到瀏覽器廠商的雲端服務做辨識，非本機處理。</li>
+        <li>翻譯使用免費公開 API（MyMemory），無需金鑰，但有流量限制、不保證正確率與穩定性，敏感內容請勿使用。</li>
+        <li>P2P 連線建立需經過 PeerJS 官方免費信令伺服器媒合，訊息內容本身走瀏覽器間直連，但連線協商過程會經過第三方。</li>
+        <li>對方連進來後可傳送任意文字訊息，本頁已做基本跳脫處理，但仍建議只跟信任的對象連線。</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <script src="./peerjs.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
