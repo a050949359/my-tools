@@ -144,7 +144,7 @@
 - **選取**：可依類型過濾（全部 / 圖片 / 試算表 / 文件 / 簡報 / PDF）、多選、支援共用雲端硬碟
 - **下載**：一般檔案直接下載；Google 文件、試算表、簡報、繪圖自動匯出成 docx / xlsx / pptx / png
 - **權限**：只要求 `drive.file`，僅能存取你在 Picker 中選取的檔案
-- **設定**：已內建本站的 OAuth Client ID 與 API Key，但 OAuth 處於測試模式，僅限名單內的帳號授權；fork 自用時可在頁面填入自己的值（頁面內有步驟說明，存在瀏覽器的 localStorage）
+- **使用限制**：OAuth 處於測試模式，僅限名單內的帳號授權；fork 自用時需改 `gdrive.js` 開頭的 Client ID 與 API Key，換成自己 Google Cloud 專案的值
 - **資料流**：檔案由 Google 直接傳到瀏覽器，不經過其他伺服器
 
 ---

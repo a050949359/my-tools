@@ -4,12 +4,12 @@ const GIS_SRC  = 'https://accounts.google.com/gsi/client';
 const GAPI_SRC = 'https://apis.google.com/js/api.js';
 // drive.file：只能存取使用者在 Picker 選取的檔案，非敏感權限不需審核
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
-// 預設值（皆為公開值：Client ID 限定授權來源、OAuth 僅限測試使用者，
-// API Key 限定網站 + 只能呼叫 Picker API）。頁面設定存進 localStorage 後以其為準
-const DEFAULT_CLIENT_ID = '763943221610-0gnnu6vtomnen73tmlj6n42267oo1j7m.apps.googleusercontent.com';
-const DEFAULT_API_KEY   = 'AIzaSyDQDkgrQ8qweEWGzLdZ1ACx_kW6YFvsY8s';
-const LS_CLIENT_ID = 'gdrive.clientId';
-const LS_API_KEY   = 'gdrive.apiKey';
+// 皆為公開值：Client ID 限定授權來源 https://a050949359.github.io、OAuth 僅限測試使用者；
+// API Key 限定網站 https://a050949359.github.io/* + 只能呼叫 Picker API
+const CLIENT_ID = '763943221610-0gnnu6vtomnen73tmlj6n42267oo1j7m.apps.googleusercontent.com';
+const API_KEY   = 'AIzaSyDQDkgrQ8qweEWGzLdZ1ACx_kW6YFvsY8s';
+// Client ID 開頭的數字即專案編號，Picker 的 setAppId 需要它才能授權選到的檔案
+const APP_ID = CLIENT_ID.split('-')[0];
 
 // Google 原生格式無法直接下載，改用 export 轉成 Office / PNG
 const EXPORTS = {
@@ -22,7 +22,6 @@ const EXPORTS = {
 let _libs = null;       // 載入 GIS + gapi.picker 的 Promise
 let _libsReady = false;
 let _tokenClient = null;
-let _tokenClientId = '';
 let _token = null;
 let _tokenExp = 0;
 let _pending = null;    // 等待中的 token 請求 { resolve, reject }
@@ -33,23 +32,6 @@ export function template() {
   return `
     <p class="muted">從自己的 Google 雲端硬碟選取檔案（Google Picker），可下載或預覽。檔案由 Google 直接傳到瀏覽器，不經過其他伺服器。</p>
 
-    <details class="gd-setup" id="gdSetup">
-      <summary>設定 Google OAuth</summary>
-      <ol class="gd-steps">
-        <li>到 <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a> 建立專案，啟用 <b>Google Picker API</b> 與 <b>Google Drive API</b></li>
-        <li>OAuth 同意畫面：使用者類型選「外部」，發布狀態維持「測試中」，測試使用者只加入自己的帳號</li>
-        <li>憑證 → 建立 OAuth 用戶端 ID（網頁應用程式），已授權的 JavaScript 來源填 <code id="gdOrigin"></code></li>
-        <li>憑證 → 建立 API 金鑰，應用程式限制選「網站」填 <code id="gdOriginWild"></code>，API 限制只勾 Google Picker API</li>
-      </ol>
-      <div class="grid-2">
-        <div><label>OAuth Client ID</label><input type="text" id="gdClientId" spellcheck="false" autocomplete="off" placeholder="123456789012-xxxx.apps.googleusercontent.com"></div>
-        <div><label>API Key</label><input type="text" id="gdApiKey" spellcheck="false" autocomplete="off" placeholder="AIza..."></div>
-      </div>
-      <div class="button-row">
-        <button class="btn-ghost" id="gdSave">儲存</button>
-        <span class="muted" id="gdSaveMsg">已內建預設值；儲存後改用這台瀏覽器（localStorage）的值，清空再儲存即恢復預設</span>
-      </div>
-    </details>
 
     <div class="gd-bar">
       <select id="gdFilter">
@@ -70,15 +52,6 @@ export function template() {
 }
 
 export function init() {
-  document.getElementById('gdOrigin').textContent = location.origin;
-  document.getElementById('gdOriginWild').textContent = `${location.origin}/*`;
-
-  const { clientId, apiKey } = loadConfig();
-  document.getElementById('gdClientId').value = clientId;
-  document.getElementById('gdApiKey').value = apiKey;
-  if (!clientId || !apiKey) document.getElementById('gdSetup').open = true;
-
-  document.getElementById('gdSave').addEventListener('click', saveConfig);
   document.getElementById('gdPickBtn').addEventListener('click', pick);
   document.getElementById('gdSignOut').addEventListener('click', signOut);
   document.getElementById('gdList').addEventListener('click', onListClick);
@@ -100,45 +73,6 @@ export function reset() {
   _files = [];
   renderList();
   setStatus('');
-}
-
-// ── 設定 ──────────────────────────────────────────────────────────────────────
-function loadConfig() {
-  try {
-    return {
-      clientId: localStorage.getItem(LS_CLIENT_ID) || DEFAULT_CLIENT_ID,
-      apiKey: localStorage.getItem(LS_API_KEY) || DEFAULT_API_KEY,
-    };
-  } catch {
-    return { clientId: DEFAULT_CLIENT_ID, apiKey: DEFAULT_API_KEY };
-  }
-}
-
-function saveConfig() {
-  const clientId = document.getElementById('gdClientId').value.trim();
-  const apiKey = document.getElementById('gdApiKey').value.trim();
-  const msg = document.getElementById('gdSaveMsg');
-  if (clientId && !appIdOf(clientId)) { msg.textContent = 'Client ID 格式不對，應為 數字-xxx.apps.googleusercontent.com'; return; }
-  try {
-    localStorage.setItem(LS_CLIENT_ID, clientId);
-    localStorage.setItem(LS_API_KEY, apiKey);
-    msg.textContent = '已儲存';
-  } catch {
-    msg.textContent = '瀏覽器不允許儲存（無痕模式？），本次仍可使用';
-  }
-}
-
-// 目前輸入框的值（未儲存也能直接用）
-function currentConfig() {
-  return {
-    clientId: document.getElementById('gdClientId').value.trim(),
-    apiKey: document.getElementById('gdApiKey').value.trim(),
-  };
-}
-
-// Client ID 開頭的數字即專案編號，Picker 的 setAppId 需要它才能授權選到的檔案
-function appIdOf(clientId) {
-  return clientId.match(/^(\d+)-[^.]+\.apps\.googleusercontent\.com$/)?.[1] || null;
 }
 
 // ── Google 函式庫 / 授權 ─────────────────────────────────────────────────────
@@ -164,11 +98,11 @@ function loadLibs() {
 }
 
 // 必須在點擊事件中同步呼叫（requestAccessToken 會開彈窗）
-function getToken(clientId) {
+function getToken() {
   if (_token && Date.now() < _tokenExp - 60_000) return Promise.resolve(_token);
-  if (!_tokenClient || _tokenClientId !== clientId) {
+  if (!_tokenClient) {
     _tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
+      client_id: CLIENT_ID,
       scope: SCOPE,
       callback: resp => {
         const p = _pending; _pending = null;
@@ -183,7 +117,6 @@ function getToken(clientId) {
         p?.reject(new Error(err.type === 'popup_closed' ? '授權視窗已關閉' : (err.message || err.type)));
       },
     });
-    _tokenClientId = clientId;
   }
   return new Promise((resolve, reject) => {
     _pending?.reject(new Error('已重新請求授權'));
@@ -207,13 +140,6 @@ function syncSignOut() {
 
 // ── Picker ────────────────────────────────────────────────────────────────────
 async function pick() {
-  const { clientId, apiKey } = currentConfig();
-  const appId = appIdOf(clientId);
-  if (!appId || !apiKey) {
-    document.getElementById('gdSetup').open = true;
-    setStatus('請先填寫 OAuth Client ID 與 API Key', true);
-    return;
-  }
   if (!_libsReady) {
     setStatus('Google 函式庫載入中，請稍候再按一次');
     loadLibs().then(() => setStatus('載入完成，可以選取檔案了')).catch(e => setStatus(`Google 函式庫載入失敗：${e.message}`, true));
@@ -222,7 +148,7 @@ async function pick() {
 
   let token;
   try {
-    token = await getToken(clientId);
+    token = await getToken();
   } catch (e) {
     setStatus(`授權失敗：${e.message}`, true);
     return;
@@ -237,8 +163,8 @@ async function pick() {
     .addView(shared)
     .enableFeature(P.Feature.SUPPORT_DRIVES)
     .setOAuthToken(token)
-    .setDeveloperKey(apiKey)
-    .setAppId(appId)
+    .setDeveloperKey(API_KEY)
+    .setAppId(APP_ID)
     .setLocale('zh-TW')
     .setCallback(onPicked);
   if (document.getElementById('gdMulti').checked) builder.enableFeature(P.Feature.MULTISELECT_ENABLED);
@@ -334,11 +260,10 @@ function onListClick(e) {
 
 // 取得檔案內容後交給 done；token 在點擊當下同步請求（過期時才會跳授權視窗）
 function withBlob(file, btn, done) {
-  const { clientId } = currentConfig();
   const label = btn.textContent;
   btn.disabled = true;
   btn.textContent = '讀取中…';
-  getToken(clientId)
+  getToken()
     .then(token => fetchBlob(file, token))
     .then(done)
     .catch(e => setStatus(`${file.name}：${e.message}`, true))
