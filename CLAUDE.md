@@ -28,7 +28,7 @@ my-tools/
 │   ├── katex/              # KaTeX 數學公式（min.js + min.css + fonts/，延遲載入）
 │   ├── highlight.min.js    # highlight.js 程式碼語法高亮（本地，延遲載入）
 │   ├── highlight-github.min.css # highlight.js GitHub 主題
-│   └── scalar.standalone.min.js # Scalar API Reference（本地，~3.6MB，延遲載入，v1.62.9）
+│   └── scalar.standalone.min.js # Scalar API Reference（本地，~4.4MB，延遲載入，v1.72.3；支援 OpenAPI 3.2 tag `parent` 巢狀）
 ├── DESIGN.md               # Design Token（色彩、字型、間距）
 └── CLAUDE.md               # 本文件
 ```
@@ -175,7 +175,7 @@ function loadLib() {
 | `sprite` | 精靈圖工作台 | 圖片工具 | 影片/幀序列 → 抽幀 → 白底去背（un-blend 反解 alpha，保留半透明光暈）→ 質心對位 → sprite sheet PNG + CSS `steps()` 片段 + JSON；幀可點擊剔除、即時動畫預覽（棋盤/深/淺底、來回播放）；零依賴純 canvas | ✓ | ✓ `#spSheetBtn` | ✗ |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` | ✗ |
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 | ✗ |
-| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟） | ✓ | ✓ `#oaRenderBtn` | ✗ |
+| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟）；Scalar 寫死關閉遙測 / Ask AI / Generate MCP / Open API Client | ✓ | ✓ `#oaRenderBtn` | ✗ |
 | `dbml` | DBML → ER 圖 | 開發者工具 | 零依賴自製 DBML parser（Table/Column/Enum/Ref/TableGroup，含欄位內 `ref:` 簡寫）+ 自製 SVG 力導向自動排版，即時渲染 ER 關聯圖；可拖曳表格、滾輪縮放、拖曳平移、hover 高亮關聯、下載 SVG/PNG、複製 SVG 原始碼；拖曳 `.dbml` 檔案載入 | ✓ | ✗ 自動觸發（同 markdown，debounce 即時預覽） | ✗ |
 
 ---

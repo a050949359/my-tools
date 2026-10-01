@@ -64,7 +64,7 @@ function updateLayoutVisibility() {
 }
 
 // jsDelivr 上與本地函式庫相同版本，供匯出的獨立 HTML 使用
-const SCALAR_CDN_URL = 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.62.9/dist/browser/standalone.min.js';
+const SCALAR_CDN_URL = 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.72.3/dist/browser/standalone.js';
 const SWAGGER_CDN_BUNDLE = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.10/swagger-ui-bundle.js';
 const SWAGGER_CDN_CSS = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.10/swagger-ui.css';
 
@@ -75,10 +75,19 @@ function readInputs() {
   return { url, content };
 }
 
+// 關閉遙測、Ask AI、Generate MCP（會把 spec 上傳到 Scalar 伺服器）、
+// Open API Client（開新分頁到 client.scalar.com）；頁內的 Test Request 保留
+const SCALAR_BASE_CONFIG = {
+  telemetry: false,
+  agent: { disabled: true },
+  mcp: { disabled: true },
+  hideClientButton: true,
+};
+
 function buildScalarHtml(libSrc, inputs, layout) {
   const config = inputs.content
-    ? { content: inputs.content, layout }
-    : { url: inputs.url, layout, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
+    ? { ...SCALAR_BASE_CONFIG, content: inputs.content, layout }
+    : { ...SCALAR_BASE_CONFIG, url: inputs.url, layout, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
   // JSON 內嵌進 <script>，把 < 轉義避免 </script> 提前斷開
   const configJson = JSON.stringify(config).replace(/</g, '\\u003c');
   return `<!doctype html>
