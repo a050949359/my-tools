@@ -19,7 +19,8 @@ my-tools/
 │   │   ├── placeholder.js
 │   │   ├── qr.js
 │   │   ├── svg.js
-│   │   └── heic.js
+│   │   ├── heic.js
+│   │   └── openapi-export.js # OpenAPI → 內部 API 匯入 JSON 的純函式轉換（openapi.js 靜態 import）
 │   ├── qrcode.min.js       # QR Code 函式庫（本地）
 │   ├── heic2any.min.js     # HEIC 轉換函式庫（本地）
 │   ├── imagetracer.js      # 點陣圖向量化函式庫（本地，~47KB，延遲載入）
@@ -28,7 +29,8 @@ my-tools/
 │   ├── katex/              # KaTeX 數學公式（min.js + min.css + fonts/，延遲載入）
 │   ├── highlight.min.js    # highlight.js 程式碼語法高亮（本地，延遲載入）
 │   ├── highlight-github.min.css # highlight.js GitHub 主題
-│   └── scalar.standalone.min.js # Scalar API Reference（本地，~4.4MB，延遲載入，v1.72.3；支援 OpenAPI 3.2 tag `parent` 巢狀）
+│   ├── scalar.standalone.min.js # Scalar API Reference（本地，~4.4MB，延遲載入，v1.72.3；支援 OpenAPI 3.2 tag `parent` 巢狀）
+│   └── js-yaml.min.js      # YAML 解析（本地，~40KB，延遲載入，v4.1.0；OpenAPI 匯出 JSON 用）
 ├── DESIGN.md               # Design Token（色彩、字型、間距）
 └── CLAUDE.md               # 本文件
 ```
@@ -98,7 +100,10 @@ export async function runHeadless(action, params) {
 回應: { mcp: true, id, result } 或 { mcp: true, id, error: { message } }
 ```
 
-動態 `import('./tools/<tool>.js')` 後呼叫該模組的 `runHeadless(action, params)`（若有）。目前只有 `svg` 支援（`action: 'convert'`，`params: { svg, width, height, bg, transparent }`）。
+動態 `import('./tools/<tool>.js')` 後呼叫該模組的 `runHeadless(action, params)`（若有）。目前支援：
+
+- `svg`：`action: 'convert'`，`params: { svg, width, height, bg, transparent }`
+- `openapi`：`action: 'exportApiJson'`，`params: { spec, operations? }`（`spec` 為 JSON/YAML 字串或物件；`operations` 為 `[{ method, path }]`，省略則全部），回傳 API 匯入 JSON 陣列
 
 安全性：只檢查 `event.origin` 是否為 `chrome-extension://` 開頭，濾掉一般網頁把本站嵌 iframe 亂送訊息的情況；**不是**真正的存取控制（本站是公開靜態站沒有祕密），也刻意不做 token（公開 repo 裡藏不住）。
 
@@ -175,7 +180,7 @@ function loadLib() {
 | `sprite` | 精靈圖工作台 | 圖片工具 | 影片/幀序列 → 抽幀 → 白底去背（un-blend 反解 alpha，保留半透明光暈）→ 質心對位 → sprite sheet PNG + CSS `steps()` 片段 + JSON；幀可點擊剔除、即時動畫預覽（棋盤/深/淺底、來回播放）；零依賴純 canvas | ✓ | ✓ `#spSheetBtn` | ✗ |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` | ✗ |
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 | ✗ |
-| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟）；Scalar 寫死關閉遙測 / Ask AI / Generate MCP / Open API Client | ✓ | ✓ `#oaRenderBtn` | ✗ |
+| `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（可選 Scalar CORS Proxy）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟）；Scalar 寫死關閉遙測 / Ask AI / Generate MCP / Open API Client；「匯出 API 匯入 JSON」：勾選 API 轉成內部 API 管理系統格式（分類取 tag `parent` 鏈、請求含參數、回應變體依 200 examples 拆、code 取 body 的 `code`），單支 .json / 多支 zip | ✓ | ✓ `#oaRenderBtn` | ✓ `exportApiJson` |
 | `dbml` | DBML → ER 圖 | 開發者工具 | 零依賴自製 DBML parser（Table/Column/Enum/Ref/TableGroup，含欄位內 `ref:` 簡寫）+ 自製 SVG 力導向自動排版，即時渲染 ER 關聯圖；可拖曳表格、滾輪縮放、拖曳平移、hover 高亮關聯、下載 SVG/PNG、複製 SVG 原始碼；拖曳 `.dbml` 檔案載入 | ✓ | ✗ 自動觸發（同 markdown，debounce 即時預覽） | ✗ |
 
 ---

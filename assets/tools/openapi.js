@@ -1,3 +1,5 @@
+import { listOperations, operationToApiJson, apiJsonFileName, buildZip } from './openapi-export.js';
+
 export function template() {
   return `
     <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面（固定現代版面）。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。下載 HTML 時可另外選擇引擎與版面配置。</p>
@@ -32,6 +34,16 @@ export function template() {
       </select>
       <button id="oaExportBtn">⬇ 下載 HTML</button>
     </div>
+    <hr style="border:none;border-top:1px solid var(--outline-variant);margin:18px 0;">
+    <p class="muted">匯出 API 匯入 JSON：解析上方規格後勾選 API，每支產生一個 .json（多支打包成 zip）。分類取第一個 tag（含 <code>parent</code> 巢狀）；請求欄位含 query / path / header 參數；回應變體依 200 回應的 examples 拆，code 取回應 body 的 <code>code</code>。</p>
+    <div class="button-row">
+      <button id="oaListBtn">列出 API</button>
+      <label id="oaSelectAllWrap" style="display:none;align-items:center;gap:7px;margin:0;">
+        <input type="checkbox" id="oaSelectAll"> 全選
+      </label>
+      <button id="oaJsonExportBtn" style="display:none;">⬇ 匯出勾選的 JSON</button>
+    </div>
+    <div id="oaApiList" style="font-family:var(--mono);font-size:13px;"></div>
   `;
 }
 
@@ -46,6 +58,11 @@ export function init() {
   document.getElementById('oaRenderBtn').addEventListener('click', openViewer);
   document.getElementById('oaExportBtn').addEventListener('click', exportHtml);
   document.getElementById('oaExportEngine').addEventListener('change', updateLayoutVisibility);
+  document.getElementById('oaListBtn').addEventListener('click', listApis);
+  document.getElementById('oaJsonExportBtn').addEventListener('click', exportApiJson);
+  document.getElementById('oaSelectAll').addEventListener('change', e => {
+    document.querySelectorAll('#oaApiList input[type=checkbox]').forEach(cb => { cb.checked = e.target.checked; });
+  });
   updateLayoutVisibility();
 }
 
@@ -55,6 +72,17 @@ export function reset() {
   document.getElementById('oaLayout').value = 'modern';
   document.getElementById('oaExportEngine').value = 'scalar';
   updateLayoutVisibility();
+  clearApiList();
+}
+
+// headless：spec 可為字串（JSON / YAML）或物件；operations 省略時匯出全部
+export async function runHeadless(action, params) {
+  if (action !== 'exportApiJson') throw new Error(`unknown action: ${action}`);
+  const { spec, operations } = params || {};
+  const parsed = typeof spec === 'string' ? await parseSpec(spec) : spec;
+  if (!parsed?.paths) throw new Error('spec 缺少 paths');
+  const targets = operations || listOperations(parsed).map(({ method, path }) => ({ method, path }));
+  return targets.map(({ method, path }) => operationToApiJson(parsed, method.toLowerCase(), path));
 }
 
 // 版面配置僅 Scalar 引擎適用，選 Swagger UI 時隱藏
@@ -162,6 +190,114 @@ function exportHtml() {
   a.download = 'openapi-doc.html';
   a.click();
   URL.revokeObjectURL(blobUrl);
+}
+
+// ---------- 匯出 API 匯入 JSON ----------
+
+let listedSpec = null;
+
+function loadYamlLib() {
+  if (typeof jsyaml !== 'undefined') return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'assets/js-yaml.min.js';
+    s.onload = res; s.onerror = () => rej(new Error('js-yaml 載入失敗'));
+    document.head.appendChild(s);
+  });
+}
+
+// JSON 先試，失敗再當 YAML（YAML 是 JSON 的超集，但 JSON.parse 快且錯誤訊息清楚）
+async function parseSpec(text) {
+  try { return JSON.parse(text); } catch { /* 不是 JSON，改用 YAML */ }
+  await loadYamlLib();
+  return jsyaml.load(text);
+}
+
+// 貼上的內容優先；否則抓網址（勾選 proxy 時走 Scalar CORS Proxy）
+async function fetchSpecText(inputs) {
+  if (inputs.content) return inputs.content;
+  const useProxy = document.getElementById('oaProxy').checked;
+  const target = useProxy ? `https://proxy.scalar.com/?${new URLSearchParams({ scalar_url: inputs.url })}` : inputs.url;
+  const res = await fetch(target);
+  if (!res.ok) throw new Error(`讀取規格失敗：HTTP ${res.status}`);
+  return res.text();
+}
+
+function clearApiList() {
+  listedSpec = null;
+  document.getElementById('oaApiList').innerHTML = '';
+  document.getElementById('oaSelectAllWrap').style.display = 'none';
+  document.getElementById('oaJsonExportBtn').style.display = 'none';
+}
+
+async function listApis() {
+  const inputs = readInputs();
+  if (!inputs) return;
+  let spec;
+  try {
+    spec = await parseSpec(await fetchSpecText(inputs));
+  } catch (e) {
+    alert(`規格解析失敗：${e.message}`);
+    return;
+  }
+  if (!spec?.paths) { alert('規格裡沒有 paths'); return; }
+
+  const ops = listOperations(spec);
+  listedSpec = spec;
+  const list = document.getElementById('oaApiList');
+  list.innerHTML = '';
+  for (const op of ops) {
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0;font-weight:normal;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.method = op.method;
+    cb.dataset.path = op.path;
+    const text = document.createElement('span');
+    text.textContent = `${op.method.toUpperCase().padEnd(6)} ${op.path}  ${op.summary}`;
+    const cat = document.createElement('span');
+    cat.className = 'muted';
+    cat.textContent = `[${op.category}]`;
+    row.append(cb, text, cat);
+    list.appendChild(row);
+  }
+  if (!ops.length) list.innerHTML = '<p class="muted">沒有任何 API</p>';
+  document.getElementById('oaSelectAll').checked = false;
+  document.getElementById('oaSelectAllWrap').style.display = ops.length ? 'flex' : 'none';
+  document.getElementById('oaJsonExportBtn').style.display = ops.length ? '' : 'none';
+}
+
+function exportApiJson() {
+  const checked = [...document.querySelectorAll('#oaApiList input[type=checkbox]:checked')];
+  if (!listedSpec || !checked.length) { alert('請先勾選要匯出的 API'); return; }
+
+  const used = new Set();
+  let files;
+  try {
+    files = checked.map(cb => {
+      const { method, path } = cb.dataset;
+      // 不同 path 轉成檔名可能撞名（如 /a-b 與 /a_b），撞名時加序號
+      let name = apiJsonFileName(method, path);
+      for (let i = 2; used.has(name); i++) name = apiJsonFileName(method, path).replace(/\.json$/, `_${i}.json`);
+      used.add(name);
+      return { name, text: JSON.stringify(operationToApiJson(listedSpec, method, path), null, 4) };
+    });
+  } catch (e) {
+    alert(`轉換失敗：${e.message}`);
+    return;
+  }
+
+  if (files.length === 1) download(new Blob([files[0].text], { type: 'application/json' }), files[0].name);
+  else download(new Blob([buildZip(files)], { type: 'application/zip' }), 'api-json.zip');
+}
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function loadFile(file) {
