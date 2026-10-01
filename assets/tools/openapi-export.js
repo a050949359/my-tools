@@ -114,7 +114,7 @@ function responseVariants(ctx, responses = {}) {
   if (named.length) {
     return named.map(([exKey, ex]) => {
       const e = resolve(ctx, ex) || {};
-      const value = e.value ?? null;
+      const value = exampleValueOf(e);
       return {
         code: codeOf(value),
         title: e.summary || exKey,
@@ -125,14 +125,25 @@ function responseVariants(ctx, responses = {}) {
     });
   }
 
+  // 3.2 的 response 有 summary（短標題），有的話 description 就放到 variant 的 description
   const example = media?.example ?? (media?.schema ? sampleOf(ctx, media.schema) : null);
   return [{
     code: codeOf(example),
-    title: res?.description || '',
-    description: '',
+    title: res?.summary || res?.description || '',
+    description: res?.summary ? res?.description || '' : '',
     fields,
     example,
   }];
+}
+
+// 3.2 的 dataValue 優先，其次 value；只有 serializedValue（字串）時嘗試當 JSON 解析
+function exampleValueOf(e) {
+  if (e.dataValue !== undefined) return e.dataValue;
+  if (e.value !== undefined) return e.value;
+  if (typeof e.serializedValue === 'string') {
+    try { return JSON.parse(e.serializedValue); } catch { return e.serializedValue; }
+  }
+  return null;
 }
 
 function codeOf(value) {
