@@ -1,1 +1,4 @@
 .vscode/
+
+# Google OAuth 用戶端密碼（純前端用不到，絕不可 commit）
+client_secret_*.json

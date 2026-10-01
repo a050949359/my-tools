@@ -32,7 +32,8 @@ my-tools/
 │   │   ├── markdown.js
 │   │   ├── openapi.js
 │   │   ├── openapi-export.js # OpenAPI → 內部 API 匯入 JSON 的純函式轉換（openapi.js 靜態 import）
-│   │   └── dbml.js
+│   │   ├── dbml.js
+│   │   └── gdrive.js
 │   ├── qrcode.min.js       # QR Code 函式庫（本地）
 │   ├── heic2any.min.js     # HEIC 轉換函式庫（本地）
 │   ├── imagetracer.js      # 點陣圖向量化函式庫（本地，~47KB，延遲載入）
@@ -161,6 +162,7 @@ Design Token 定義在 `styles.css` `:root`，對應 `DESIGN.md`。
 ## 外部函式庫載入規則
 
 - 優先放在 `assets/` 本地（避免 CDN 失效影響靜態部署）
+- **例外**：Google 的 `accounts.google.com/gsi/client`（GIS 授權）與 `apis.google.com/js/api.js`（gapi / Picker）官方不提供自架，只能從 Google 載入；同樣延遲到 `gdrive` 工具 `init()` 才注入
 - 採**延遲載入**：工具 `init()` 或 `loadLib()` 時才注入 `<script>`，不在頁面初始載入
 
 ```js
@@ -199,6 +201,7 @@ function loadLib() {
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 | ✗ |
 | `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（直接抓取，不經 proxy，對方需允許 CORS）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟）；Scalar 寫死關閉遙測 / Ask AI / Generate MCP / Open API Client；左右兩欄版面，右欄規格一輸入（貼上 debounce / 上傳 / 網址 change）即自動依分類分組列出 API；「匯出 API 匯入 JSON」：勾選 API 轉成內部 API 管理系統格式（分類取 tag `parent` 鏈、請求含參數、回應變體依 200 examples 拆、code 取 body 的 `code`），單支 .json / 多支 zip | ✓ | ✓ `#oaRenderBtn` | ✓ `exportApiJson` |
 | `dbml` | DBML → ER 圖 | 開發者工具 | 零依賴自製 DBML parser（Table/Column/Enum/Ref/TableGroup，含欄位內 `ref:` 簡寫）+ 自製 SVG 力導向自動排版，即時渲染 ER 關聯圖；可拖曳表格、滾輪縮放、拖曳平移、hover 高亮關聯、下載 SVG/PNG、複製 SVG 原始碼；拖曳 `.dbml` 檔案載入 | ✓ | ✗ 自動觸發（同 markdown，debounce 即時預覽） | ✗ |
+| `gdrive` | Google 雲端硬碟 | 雲端服務 | Google Picker 選檔（類型過濾、多選、共用雲端硬碟）→ Drive API 下載 / 圖片預覽，Google 文件/試算表/簡報/繪圖自動 export 成 docx/xlsx/pptx/png；scope 只用 `drive.file`；Client ID / API Key 內建預設值寫在 `gdrive.js` 開頭（公開值，Client ID 限 `https://a050949359.github.io` 來源 + OAuth 測試使用者名單，API Key 限網站 + 只開 Picker API），頁面可覆寫存 localStorage；**用戶端密碼 `client_secret_*.json` 純前端用不到，已列入 `.gitignore`，絕不可 commit**，App ID 由 Client ID 開頭數字推得；GIS 授權彈窗須在點擊當下同步開啟，故 `init()` 就預載函式庫 | ✓ | ✓ `#gdPickBtn` | ✗ |
 
 ---
 

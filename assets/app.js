@@ -41,6 +41,13 @@ const TOOL_GROUPS = [
       { id: 'dbml',     label: 'DBML → ER 圖',    src: './tools/dbml.js'     },
     ]
   },
+  {
+    label: '雲端服務',
+    icon: '☁',
+    tools: [
+      { id: 'gdrive', label: 'Google 雲端硬碟', src: './tools/gdrive.js' },
+    ]
+  },
 ];
 
 const TOOLS = TOOL_GROUPS.flatMap(g => g.tools);

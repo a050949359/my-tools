@@ -137,6 +137,18 @@
 
 ---
 
+### 雲端服務
+
+#### 19. Google 雲端硬碟
+- **功能**：用 Google Picker 從自己的雲端硬碟選取檔案，下載或預覽
+- **選取**：可依類型過濾（全部 / 圖片 / 試算表 / 文件 / 簡報 / PDF）、多選、支援共用雲端硬碟
+- **下載**：一般檔案直接下載；Google 文件、試算表、簡報、繪圖自動匯出成 docx / xlsx / pptx / png
+- **權限**：只要求 `drive.file`，僅能存取你在 Picker 中選取的檔案
+- **設定**：已內建本站的 OAuth Client ID 與 API Key，但 OAuth 處於測試模式，僅限名單內的帳號授權；fork 自用時可在頁面填入自己的值（頁面內有步驟說明，存在瀏覽器的 localStorage）
+- **資料流**：檔案由 Google 直接傳到瀏覽器，不經過其他伺服器
+
+---
+
 ## 使用說明
 
 1. 開啟 `index.html`
@@ -175,7 +187,8 @@ my-tools/
 │   │   ├── markdown.js     # Markdown 預覽
 │   │   ├── openapi.js      # OpenAPI 文件檢視
 │   │   ├── openapi-export.js # OpenAPI → API 匯入 JSON 轉換
-│   │   └── dbml.js         # DBML → ER 圖
+│   │   ├── dbml.js         # DBML → ER 圖
+│   │   └── gdrive.js       # Google 雲端硬碟
 │   ├── qrcode.min.js       # QR Code 函式庫
 │   ├── heic2any.min.js     # HEIC 轉換函式庫
 │   ├── imagetracer.js      # 點陣圖向量化函式庫
@@ -189,7 +202,7 @@ my-tools/
 └── CLAUDE.md               # 開發規範
 ```
 
-函式庫皆放在本地並延遲載入，不依賴 CDN。
+函式庫皆放在本地並延遲載入，不依賴 CDN（Google 雲端硬碟工具所需的 Google 官方腳本除外，只能從 Google 載入）。
 
 ## 特色
 
