@@ -17,10 +17,22 @@ my-tools/
 │   │   ├── text.js
 │   │   ├── image.js
 │   │   ├── placeholder.js
-│   │   ├── qr.js
 │   │   ├── svg.js
 │   │   ├── heic.js
-│   │   └── openapi-export.js # OpenAPI → 內部 API 匯入 JSON 的純函式轉換（openapi.js 靜態 import）
+│   │   ├── imageBrowser.js
+│   │   ├── imageTracer.js
+│   │   ├── imageHotspot.js
+│   │   ├── sprite.js
+│   │   ├── sensor.js
+│   │   ├── qr.js
+│   │   ├── rsa.js
+│   │   ├── url.js
+│   │   ├── json.js
+│   │   ├── regex.js
+│   │   ├── markdown.js
+│   │   ├── openapi.js
+│   │   ├── openapi-export.js # OpenAPI → 內部 API 匯入 JSON 的純函式轉換（openapi.js 靜態 import）
+│   │   └── dbml.js
 │   ├── qrcode.min.js       # QR Code 函式庫（本地）
 │   ├── heic2any.min.js     # HEIC 轉換函式庫（本地）
 │   ├── imagetracer.js      # 點陣圖向量化函式庫（本地，~47KB，延遲載入）
@@ -170,7 +182,7 @@ function loadLib() {
 | ID | 名稱 | 分類 | 主要功能 | reset | data-primary | headless |
 |---|---|---|---|---|---|---|
 | `text` | 文字轉換 | 文字工具 | `\uXXXX` / JSON 解析 | ✗ | ✓ `#convertBtn` | ✗ |
-| `image` | 圖片 → Base64 | 圖片工具 | 圖片轉 Base64 data URL | ✗ | ✗ 自動觸發 | ✗ |
+| `image` | 圖片編輯 | 圖片工具 | 裁切（拖曳選框/座標）、縮放、浮水印（單點/平鋪）；PNG/JPG/WebP 匯出可調品質、10 步 Undo、複製 Base64 | ✓ | ✗ 上傳後操作 | ✗ |
 | `placeholder` | Placeholder 生成 | 圖片工具 | 即時產生占位圖 | ✗ | ✗ 自動觸發 | ✗ |
 | `svg` | SVG → PNG | 圖片工具 | SVG 轉 PNG，可設尺寸背景 | ✗ | ✓ `#svgConvertBtn` | ✓ `convert` |
 | `heic` | HEIC → PNG | 圖片工具 | HEIC/HEIF 轉 PNG | ✗ | ✓ `#heicConvertBtn` | ✗ |
@@ -178,7 +190,12 @@ function loadLib() {
 | `imageTracer` | 圖片 → SVG 描邊 | 圖片工具 | ImageTracer.js（本地、延遲載入）點陣圖向量化成 SVG；預設風格 + 色數/去躁/模糊滑桿、原圖對照、路徑數統計、下載/複製；可「→ 加互動連結」交接給熱區工具 | ✓ | ✓ `#itRunBtn` | ✗ |
 | `imageHotspot` | SVG 互動熱區 | 圖片工具 | 貼上/上傳/交接 SVG，在圖上點選或框選一群 path、或拉矩形熱區，綁超連結 href；兩種匯出:①描邊版(path 包 `<a>`)②原圖內嵌版(原圖 `<image>` 當底+path 群轉外框 rect，原圖清晰);透明可點不填滿、`rel=noopener` | ✓ | ✓ `#hsLoad` | ✗ |
 | `sprite` | 精靈圖工作台 | 圖片工具 | 影片/幀序列 → 抽幀 → 白底去背（un-blend 反解 alpha，保留半透明光暈）→ 質心對位 → sprite sheet PNG + CSS `steps()` 片段 + JSON；幀可點擊剔除、即時動畫預覽（棋盤/深/淺底、來回播放）；零依賴純 canvas | ✓ | ✓ `#spSheetBtn` | ✗ |
+| `sensor` | 感測器監控 | 行動裝置 | 加速度計、陀螺儀、方向、磁力計、環境光、GPS、電池、麥克風音量；各卡片可個別開關，canvas 即時波形（iOS 需授權 DeviceMotion，磁力計/環境光僅 Chrome Android） | ✗ | ✗ 開關觸發 | ✗ |
 | `qr` | QR Code 生成 | 開發者工具 | QR 生成，支援中央 Icon | ✓ | ✓ `#qrGenBtn` | ✗ |
+| `rsa` | RSA 金鑰產生器 | 開發者工具 | WebCrypto 本地產生 RSA-OAEP / RSA-PSS 金鑰對（2048/4096），匯出 PEM / JWK | ✗ | ✓ `#rsaGenBtn` | ✗ |
+| `url` | URL 解析 | 開發者工具 | 拆解 URL 各組成、Query 參數逐條列出、encode/decodeURIComponent | ✗ | ✓ `#urlParseBtn` | ✗ |
+| `json` | JSON 格式化 | 開發者工具 | 格式化（2 格縮排）/ 壓縮 / Escape / Unescape；輸入即時驗證，**錯誤定位**（自製掃描器找出錯誤 offset，各瀏覽器一致；顯示行列 + 中文提示 + 片段 `^` 指標，點擊跳到輸入框位置）；Text 檢視關鍵字搜尋（不分大小寫子字串）、Tree 檢視可折疊、點 key 複製節點並顯示 JSONPath | ✗ | ✗ 工具列多個操作鍵 | ✗ |
+| `regex` | Regex 測試器 | 開發者工具 | JS 引擎（非 PCRE）；flags g/i/m/s、即時高亮、match 清單含 capture group | ✗ | ✗ 自動觸發 | ✗ |
 | `markdown` | Markdown 預覽 | 開發者工具 | 即時預覽 marked（CommonMark+GFM）；Mermaid 圖表、KaTeX 數學、程式碼高亮（皆延遲載入）；目錄、檢視切換、拖曳 `.md` | ✓ | ✗ 自動觸發 | ✗ |
 | `openapi` | OpenAPI 文件檢視 | 開發者工具 | Scalar API Reference（本地函式庫）渲染 OpenAPI/Swagger 文件，於新分頁開啟獨立頁面（Blob URL，固定現代版面）；支援網址（直接抓取，不經 proxy，對方需允許 CORS）、貼上 JSON/YAML、拖曳上傳檔案；下載 HTML 時可選引擎（Scalar 現代/經典版面、或 Swagger UI 原始 JS，皆改走 jsDelivr CDN，需連網開啟）；Scalar 寫死關閉遙測 / Ask AI / Generate MCP / Open API Client；左右兩欄版面，右欄規格一輸入（貼上 debounce / 上傳 / 網址 change）即自動依分類分組列出 API；「匯出 API 匯入 JSON」：勾選 API 轉成內部 API 管理系統格式（分類取 tag `parent` 鏈、請求含參數、回應變體依 200 examples 拆、code 取 body 的 `code`），單支 .json / 多支 zip | ✓ | ✓ `#oaRenderBtn` | ✓ `exportApiJson` |
 | `dbml` | DBML → ER 圖 | 開發者工具 | 零依賴自製 DBML parser（Table/Column/Enum/Ref/TableGroup，含欄位內 `ref:` 簡寫）+ 自製 SVG 力導向自動排版，即時渲染 ER 關聯圖；可拖曳表格、滾輪縮放、拖曳平移、hover 高亮關聯、下載 SVG/PNG、複製 SVG 原始碼；拖曳 `.dbml` 檔案載入 | ✓ | ✗ 自動觸發（同 markdown，debounce 即時預覽） | ✗ |

@@ -641,6 +641,21 @@ mark.json-mark-cur {
 
 .json-status-ok    { color: #16a34a; }
 .json-status-error { color: var(--primary); }
+.json-status-jump  { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+
+.json-err-snippet {
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--surface-low);
+  border-radius: 6px;
+  overflow-x: auto;
+  cursor: pointer;
+  white-space: pre;
+}
+.json-err-caret { color: var(--primary); font-weight: 700; }
 
 @media (max-width: 640px) {
   .json-shell { grid-template-columns: 1fr; height: auto; }
