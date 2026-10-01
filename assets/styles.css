@@ -641,6 +641,21 @@ mark.json-mark-cur {
 
 .json-status-ok    { color: #16a34a; }
 .json-status-error { color: var(--primary); }
+.json-status-jump  { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+
+.json-err-snippet {
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--surface-low);
+  border-radius: 6px;
+  overflow-x: auto;
+  cursor: pointer;
+  white-space: pre;
+}
+.json-err-caret { color: var(--primary); font-weight: 700; }
 
 @media (max-width: 640px) {
   .json-shell { grid-template-columns: 1fr; height: auto; }
@@ -1454,4 +1469,50 @@ mark.json-mark-cur {
   border-radius: 3px;
   padding: 0 4px;
   color: var(--on-surface);
+}
+
+/* ── Google 雲端硬碟 ─────────────────────────────────────────────────────── */
+.gd-setup {
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  background: var(--surface-low);
+}
+.gd-setup summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.gd-setup[open] summary { margin-bottom: 10px; }
+.gd-steps { padding-left: 20px; margin-bottom: 12px; font-size: 13px; line-height: 1.8; color: var(--on-surface-variant); }
+.gd-setup .button-row { align-items: center; margin-top: 10px; }
+.gd-setup .button-row .btn-ghost { margin-top: 0; }
+.gd-steps code { font-family: var(--mono); font-size: 12px; color: var(--on-surface); }
+
+.gd-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gd-bar select { width: auto; }
+.gd-bar .btn-ghost { margin-top: 0; }
+.gd-check { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+.gd-check input { width: auto; }
+
+.gd-status { margin: 10px 0; min-height: 1em; }
+.gd-status-error { color: var(--primary); }
+
+.gd-list { display: flex; flex-direction: column; gap: 8px; }
+.gd-item {
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.gd-item-main { display: flex; align-items: center; gap: 10px; }
+.gd-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.gd-item-info { flex: 1; min-width: 0; }
+.gd-name { font-size: 13px; font-weight: 600; color: var(--on-surface); text-decoration: none; word-break: break-all; }
+.gd-name:hover { color: var(--primary); text-decoration: underline; }
+.gd-meta { font-family: var(--mono); font-size: 11px; color: var(--on-surface-variant); margin-top: 2px; word-break: break-all; }
+.gd-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.gd-actions .btn-ghost { margin-top: 0; }
+.gd-preview { display: block; max-width: 100%; max-height: 360px; margin-top: 10px; border-radius: 4px; }
+
+@media (max-width: 640px) {
+  .gd-item-main { flex-wrap: wrap; }
+  .gd-actions { width: 100%; justify-content: flex-end; }
 }
