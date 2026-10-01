@@ -280,6 +280,7 @@ label {
 /* ── Form Controls ───────────────────────────────────────────────────────── */
 textarea,
 input[type="text"],
+input[type="url"],
 input[type="number"],
 select {
   width: 100%;
@@ -295,6 +296,7 @@ select {
 
 textarea:focus,
 input[type="text"]:focus,
+input[type="url"]:focus,
 input[type="number"]:focus,
 select:focus {
   outline: none;
@@ -646,6 +648,148 @@ mark.json-mark-cur {
   .content-pane:has(#mdShell) > .tool { display: block; flex: none; }
   #mdShell { flex: none; height: auto; min-height: 0; }
   .json-panel textarea { min-height: 160px; }
+}
+
+/* ── OpenAPI 文件檢視：API 列表面板 ───────────────────────────────────── */
+.oa-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.oa-panel {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  background: var(--surface);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.oa-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-container);
+  border-bottom: 1px solid var(--outline);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+
+.oa-count { font-family: var(--mono); text-transform: none; letter-spacing: 0; }
+.oa-count b { color: var(--primary); }
+
+.oa-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--outline);
+}
+.oa-toolbar[hidden] { display: none; }
+.oa-toolbar button { margin-top: 0; padding: 6px 12px; font-size: 12px; }
+.oa-toolbar button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* 面板內的 label 不套全域表單 label（大寫小字） */
+.oa-panel label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--on-surface);
+  cursor: pointer;
+}
+.oa-panel input[type="checkbox"] { accent-color: var(--primary); flex-shrink: 0; }
+
+.oa-list { max-height: 62vh; overflow-y: auto; }
+
+.oa-panel .oa-cat {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 12px;
+  background: var(--surface-low);
+  border-bottom: 1px solid var(--outline);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--on-surface-variant);
+}
+.oa-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oa-cat-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: var(--surface-container);
+}
+
+.oa-panel .oa-row {
+  align-items: flex-start;
+  padding: 7px 12px 7px 32px;
+  border-bottom: 1px solid var(--surface-container);
+  transition: background .1s;
+}
+.oa-row:hover { background: var(--surface-low); }
+.oa-row:has(input:checked) { background: #fff8f3; }
+.oa-row input { margin-top: 3px; }
+
+.oa-method {
+  flex-shrink: 0;
+  width: 56px;
+  padding: 2px 0;
+  border-radius: 3px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--on-surface-variant);
+}
+.oa-method-get    { background: #006591; }
+.oa-method-post   { background: #16a34a; }
+.oa-method-put    { background: #f97316; }
+.oa-method-patch  { background: #795900; }
+.oa-method-delete { background: #ba1a1a; }
+
+.oa-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.oa-path { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+.oa-summary { font-size: 12px; color: var(--on-surface-variant); }
+
+.oa-status {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+.oa-status:empty { display: none; }
+.oa-status.is-error { color: var(--primary); }
+
+.oa-panel-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--outline);
+  background: var(--surface-low);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--on-surface-variant);
+}
+
+@media (max-width: 900px) {
+  .oa-columns { grid-template-columns: 1fr; }
+  .oa-panel { position: static; }
 }
 
 /* ── Markdown 預覽 ───────────────────────────────────────────────────────── */

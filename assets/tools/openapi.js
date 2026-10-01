@@ -2,48 +2,51 @@ import { listOperations, operationToApiJson, apiJsonFileName, buildZip } from '.
 
 export function template() {
   return `
-    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面（固定現代版面）。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。下載 HTML 時可另外選擇引擎與版面配置。</p>
-    <div class="grid-2">
-      <div><label>OpenAPI 規格網址:</label>
-        <input type="url" id="oaUrl" placeholder="https://example.com/openapi.json">
-      </div>
-      <div style="display:flex;align-items:end;">
-        <label style="display:flex;align-items:center;gap:7px;margin:0;">
+    <p class="muted">使用 Scalar API Reference（本地函式庫）渲染 OpenAPI / Swagger 文件，會在<b>新分頁</b>開啟完整文件頁面（固定現代版面）。可輸入規格網址，或直接貼上 JSON / YAML 內容；貼上的內容優先於網址。右側會自動列出規格內的 API，可勾選匯出成 API 匯入 JSON。</p>
+    <div class="oa-columns">
+      <div>
+        <div><label>OpenAPI 規格網址:</label>
+          <input type="url" id="oaUrl" placeholder="https://example.com/openapi.json">
+        </div>
+        <label style="display:flex;align-items:center;gap:7px;margin:8px 0 0;">
           <input type="checkbox" id="oaProxy" checked> 透過 Scalar CORS Proxy 讀取網址
         </label>
+        <div><label>或貼上規格內容 (JSON / YAML):</label>
+          <textarea id="oaContent" placeholder="貼入 OpenAPI JSON 或 YAML，或使用下方上傳檔案" rows="12" style="font-family:var(--mono);"></textarea>
+        </div>
+        <div id="oaDropZone" class="drop-zone">
+          拖曳 .json / .yaml / .yml 檔案到這裡，或點擊選擇檔案
+          <input type="file" id="oaFileInput" accept=".json,.yaml,.yml,application/json" hidden>
+        </div>
+        <div class="button-row">
+          <button id="oaRenderBtn" data-primary>在新分頁開啟文件</button>
+        </div>
+        <div class="button-row" style="margin-top:10px;">
+          <select id="oaExportEngine" title="匯出的 HTML 要用哪個引擎渲染">
+            <option value="scalar">Scalar</option>
+            <option value="swagger">Swagger UI（原始 JS）</option>
+          </select>
+          <select id="oaLayout" title="僅 Scalar 引擎適用的版面配置">
+            <option value="modern">現代（Scalar 側欄）</option>
+            <option value="classic">經典（類似 Swagger UI）</option>
+          </select>
+          <button id="oaExportBtn">⬇ 下載 HTML</button>
+        </div>
+      </div>
+      <div class="oa-panel">
+        <div class="oa-panel-header">
+          <span>API 列表</span>
+          <span id="oaApiCount" class="oa-count"></span>
+        </div>
+        <div id="oaApiControls" class="oa-toolbar" hidden>
+          <label><input type="checkbox" id="oaSelectAll"> 全選</label>
+          <button id="oaJsonExportBtn" disabled>⬇ 匯出勾選的 JSON</button>
+        </div>
+        <p id="oaApiStatus" class="oa-status"></p>
+        <div id="oaApiList" class="oa-list"></div>
+        <div class="oa-panel-footer">每支 API 產生一個 .json（多支打包成 zip）。分類取第一個 tag（含 <code>parent</code> 巢狀）；請求欄位含 query / path / header 參數；回應變體依 200 回應的 examples 拆，code 取回應 body 的 <code>code</code>。</div>
       </div>
     </div>
-    <div><label>或貼上規格內容 (JSON / YAML):</label>
-      <textarea id="oaContent" placeholder="貼入 OpenAPI JSON 或 YAML，或使用下方上傳檔案" rows="6" style="font-family:var(--mono);"></textarea>
-    </div>
-    <div id="oaDropZone" class="drop-zone">
-      拖曳 .json / .yaml / .yml 檔案到這裡，或點擊選擇檔案
-      <input type="file" id="oaFileInput" accept=".json,.yaml,.yml,application/json" hidden>
-    </div>
-    <div class="button-row">
-      <button id="oaRenderBtn" data-primary>在新分頁開啟文件</button>
-    </div>
-    <div class="button-row" style="margin-top:10px;">
-      <select id="oaExportEngine" title="匯出的 HTML 要用哪個引擎渲染">
-        <option value="scalar">Scalar</option>
-        <option value="swagger">Swagger UI（原始 JS）</option>
-      </select>
-      <select id="oaLayout" title="僅 Scalar 引擎適用的版面配置">
-        <option value="modern">現代（Scalar 側欄）</option>
-        <option value="classic">經典（類似 Swagger UI）</option>
-      </select>
-      <button id="oaExportBtn">⬇ 下載 HTML</button>
-    </div>
-    <hr style="border:none;border-top:1px solid var(--outline-variant);margin:18px 0;">
-    <p class="muted">匯出 API 匯入 JSON：解析上方規格後勾選 API，每支產生一個 .json（多支打包成 zip）。分類取第一個 tag（含 <code>parent</code> 巢狀）；請求欄位含 query / path / header 參數；回應變體依 200 回應的 examples 拆，code 取回應 body 的 <code>code</code>。</p>
-    <div class="button-row">
-      <button id="oaListBtn">列出 API</button>
-      <label id="oaSelectAllWrap" style="display:none;align-items:center;gap:7px;margin:0;">
-        <input type="checkbox" id="oaSelectAll"> 全選
-      </label>
-      <button id="oaJsonExportBtn" style="display:none;">⬇ 匯出勾選的 JSON</button>
-    </div>
-    <div id="oaApiList" style="font-family:var(--mono);font-size:13px;"></div>
   `;
 }
 
@@ -58,12 +61,28 @@ export function init() {
   document.getElementById('oaRenderBtn').addEventListener('click', openViewer);
   document.getElementById('oaExportBtn').addEventListener('click', exportHtml);
   document.getElementById('oaExportEngine').addEventListener('change', updateLayoutVisibility);
-  document.getElementById('oaListBtn').addEventListener('click', listApis);
+  updateLayoutVisibility();
+
+  // 規格一有變動就自動重新列出 API：貼上 / 打字 debounce，網址在 change（Enter 或離開欄位）時才抓
+  document.getElementById('oaContent').addEventListener('input', () => scheduleList(400));
+  document.getElementById('oaUrl').addEventListener('change', () => scheduleList(0));
+  document.getElementById('oaProxy').addEventListener('change', () => {
+    if (!document.getElementById('oaContent').value.trim()) scheduleList(0);
+  });
   document.getElementById('oaJsonExportBtn').addEventListener('click', exportApiJson);
   document.getElementById('oaSelectAll').addEventListener('change', e => {
     document.querySelectorAll('#oaApiList input[type=checkbox]').forEach(cb => { cb.checked = e.target.checked; });
+    updateSelection();
   });
-  updateLayoutVisibility();
+  document.getElementById('oaApiList').addEventListener('change', e => {
+    const group = e.target.dataset.group;
+    if (group !== undefined) {
+      document.querySelectorAll(`#oaApiList input[data-in-group="${group}"]`).forEach(cb => { cb.checked = e.target.checked; });
+    }
+    updateSelection();
+  });
+  listApis();
+  return () => clearTimeout(listTimer);
 }
 
 export function reset() {
@@ -72,7 +91,8 @@ export function reset() {
   document.getElementById('oaLayout').value = 'modern';
   document.getElementById('oaExportEngine').value = 'scalar';
   updateLayoutVisibility();
-  clearApiList();
+  listToken++;
+  clearApiList(EMPTY_HINT);
 }
 
 // headless：spec 可為字串（JSON / YAML）或物件；operations 省略時匯出全部
@@ -194,7 +214,11 @@ function exportHtml() {
 
 // ---------- 匯出 API 匯入 JSON ----------
 
+const EMPTY_HINT = '貼上、上傳或輸入規格網址後，這裡會自動列出 API';
+
 let listedSpec = null;
+let listToken = 0;
+let listTimer = null;
 
 function loadYamlLib() {
   if (typeof jsyaml !== 'undefined') return Promise.resolve();
@@ -223,52 +247,130 @@ async function fetchSpecText(inputs) {
   return res.text();
 }
 
-function clearApiList() {
-  listedSpec = null;
-  document.getElementById('oaApiList').innerHTML = '';
-  document.getElementById('oaSelectAllWrap').style.display = 'none';
-  document.getElementById('oaJsonExportBtn').style.display = 'none';
+function scheduleList(delay) {
+  clearTimeout(listTimer);
+  listTimer = setTimeout(listApis, delay);
 }
 
+function clearApiList(message) {
+  listedSpec = null;
+  document.getElementById('oaApiList').innerHTML = '';
+  setStatus(message);
+  document.getElementById('oaApiCount').textContent = '';
+  document.getElementById('oaApiControls').hidden = true;
+}
+
+function setStatus(message, isError = false) {
+  const el = document.getElementById('oaApiStatus');
+  el.textContent = message;
+  el.classList.toggle('is-error', isError);
+}
+
+// 自動觸發，錯誤顯示在面板內而不 alert；listToken 讓較晚發出的解析結果蓋過較早的
 async function listApis() {
-  const inputs = readInputs();
-  if (!inputs) return;
+  const token = ++listToken;
+  const url = document.getElementById('oaUrl').value.trim();
+  const content = document.getElementById('oaContent').value.trim();
+  if (!url && !content) { clearApiList(EMPTY_HINT); return; }
+
+  setStatus('解析中…');
   let spec;
   try {
-    spec = await parseSpec(await fetchSpecText(inputs));
+    spec = await parseSpec(await fetchSpecText({ url, content }));
   } catch (e) {
-    alert(`規格解析失敗：${e.message}`);
+    if (token === listToken) { clearApiList(''); setStatus(`無法解析規格：${e.message}`, true); }
     return;
   }
-  if (!spec?.paths) { alert('規格裡沒有 paths'); return; }
+  if (token !== listToken) return;
+  if (!spec?.paths) { clearApiList(''); setStatus('規格裡沒有 paths', true); return; }
+  renderApiList(spec);
+}
 
-  const ops = listOperations(spec);
-  listedSpec = spec;
+// 依分類分組列出；重新列出時保留原本勾選的 API
+function renderApiList(spec) {
   const list = document.getElementById('oaApiList');
-  list.innerHTML = '';
-  for (const op of ops) {
-    const row = document.createElement('label');
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0;font-weight:normal;';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.dataset.method = op.method;
-    cb.dataset.path = op.path;
-    const text = document.createElement('span');
-    text.textContent = `${op.method.toUpperCase().padEnd(6)} ${op.path}  ${op.summary}`;
-    const cat = document.createElement('span');
-    cat.className = 'muted';
-    cat.textContent = `[${op.category}]`;
-    row.append(cb, text, cat);
-    list.appendChild(row);
+  const prevChecked = new Set([...list.querySelectorAll('input[data-path]:checked')]
+    .map(cb => `${cb.dataset.method} ${cb.dataset.path}`));
+
+  const groups = new Map();
+  for (const op of listOperations(spec)) {
+    if (!groups.has(op.category)) groups.set(op.category, []);
+    groups.get(op.category).push(op);
   }
-  if (!ops.length) list.innerHTML = '<p class="muted">沒有任何 API</p>';
-  document.getElementById('oaSelectAll').checked = false;
-  document.getElementById('oaSelectAllWrap').style.display = ops.length ? 'flex' : 'none';
-  document.getElementById('oaJsonExportBtn').style.display = ops.length ? '' : 'none';
+
+  listedSpec = spec;
+  list.innerHTML = '';
+  [...groups.entries()].forEach(([category, ops], gi) => {
+    const head = document.createElement('label');
+    head.className = 'oa-cat';
+    const gcb = document.createElement('input');
+    gcb.type = 'checkbox';
+    gcb.dataset.group = gi;
+    const name = document.createElement('span');
+    name.className = 'oa-cat-name';
+    name.textContent = category;
+    name.title = category;
+    const count = document.createElement('span');
+    count.className = 'oa-cat-count';
+    count.textContent = ops.length;
+    head.append(gcb, name, count);
+    list.appendChild(head);
+
+    for (const op of ops) {
+      const row = document.createElement('label');
+      row.className = 'oa-row';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.method = op.method;
+      cb.dataset.path = op.path;
+      cb.dataset.inGroup = gi;
+      cb.checked = prevChecked.has(`${op.method} ${op.path}`);
+      const method = document.createElement('span');
+      method.className = `oa-method oa-method-${op.method}`;
+      method.textContent = op.method.toUpperCase();
+      const text = document.createElement('span');
+      text.className = 'oa-row-text';
+      const path = document.createElement('span');
+      path.className = 'oa-path';
+      path.textContent = op.path;
+      text.appendChild(path);
+      if (op.summary) {
+        const summary = document.createElement('span');
+        summary.className = 'oa-summary';
+        summary.textContent = op.summary;
+        text.appendChild(summary);
+      }
+      row.append(cb, method, text);
+      list.appendChild(row);
+    }
+  });
+
+  const total = groups.size ? [...groups.values()].reduce((n, ops) => n + ops.length, 0) : 0;
+  setStatus(total ? '' : '規格裡沒有任何 API');
+  document.getElementById('oaApiControls').hidden = !total;
+  updateSelection();
+}
+
+// 更新計數、全選與分組勾選框的狀態（部分勾選顯示 indeterminate）
+function updateSelection() {
+  const rows = [...document.querySelectorAll('#oaApiList input[data-path]')];
+  const checked = rows.filter(cb => cb.checked).length;
+  document.getElementById('oaApiCount').innerHTML = rows.length ? `已選 <b>${checked}</b> / ${rows.length}` : '';
+  document.getElementById('oaJsonExportBtn').disabled = !checked;
+  setTriState(document.getElementById('oaSelectAll'), checked, rows.length);
+  document.querySelectorAll('#oaApiList input[data-group]').forEach(gcb => {
+    const members = rows.filter(cb => cb.dataset.inGroup === gcb.dataset.group);
+    setTriState(gcb, members.filter(cb => cb.checked).length, members.length);
+  });
+}
+
+function setTriState(cb, checked, total) {
+  cb.checked = total > 0 && checked === total;
+  cb.indeterminate = checked > 0 && checked < total;
 }
 
 function exportApiJson() {
-  const checked = [...document.querySelectorAll('#oaApiList input[type=checkbox]:checked')];
+  const checked = [...document.querySelectorAll('#oaApiList input[data-path]:checked')];
   if (!listedSpec || !checked.length) { alert('請先勾選要匯出的 API'); return; }
 
   const used = new Set();
@@ -303,6 +405,6 @@ function download(blob, filename) {
 function loadFile(file) {
   if (!file || !/\.(json|ya?ml)$/i.test(file.name)) { alert('請選擇 .json / .yaml / .yml 檔案'); return; }
   const reader = new FileReader();
-  reader.onload = () => { document.getElementById('oaContent').value = reader.result; openViewer(); };
+  reader.onload = () => { document.getElementById('oaContent').value = reader.result; listApis(); openViewer(); };
   reader.readAsText(file);
 }
