@@ -8,9 +8,6 @@ export function template() {
         <div><label>OpenAPI 規格網址:</label>
           <input type="url" id="oaUrl" placeholder="https://example.com/openapi.json">
         </div>
-        <label style="display:flex;align-items:center;gap:7px;margin:8px 0 0;">
-          <input type="checkbox" id="oaProxy" checked> 透過 Scalar CORS Proxy 讀取網址
-        </label>
         <div><label>或貼上規格內容 (JSON / YAML):</label>
           <textarea id="oaContent" placeholder="貼入 OpenAPI JSON 或 YAML，或使用下方上傳檔案" rows="12" style="font-family:var(--mono);"></textarea>
         </div>
@@ -21,7 +18,8 @@ export function template() {
         <div class="button-row">
           <button id="oaRenderBtn" data-primary>在新分頁開啟文件</button>
         </div>
-        <div class="button-row" style="margin-top:10px;">
+        <label style="margin-top:18px;">下載 HTML（渲染引擎 / 版面）:</label>
+        <div class="button-row" style="align-items:center;flex-wrap:nowrap;">
           <select id="oaExportEngine" title="匯出的 HTML 要用哪個引擎渲染">
             <option value="scalar">Scalar</option>
             <option value="swagger">Swagger UI（原始 JS）</option>
@@ -30,7 +28,7 @@ export function template() {
             <option value="modern">現代（Scalar 側欄）</option>
             <option value="classic">經典（類似 Swagger UI）</option>
           </select>
-          <button id="oaExportBtn">⬇ 下載 HTML</button>
+          <button id="oaExportBtn" style="margin-top:0;flex-shrink:0;">⬇ 下載</button>
         </div>
       </div>
       <div class="oa-panel">
@@ -66,9 +64,6 @@ export function init() {
   // 規格一有變動就自動重新列出 API：貼上 / 打字 debounce，網址在 change（Enter 或離開欄位）時才抓
   document.getElementById('oaContent').addEventListener('input', () => scheduleList(400));
   document.getElementById('oaUrl').addEventListener('change', () => scheduleList(0));
-  document.getElementById('oaProxy').addEventListener('change', () => {
-    if (!document.getElementById('oaContent').value.trim()) scheduleList(0);
-  });
   document.getElementById('oaJsonExportBtn').addEventListener('click', exportApiJson);
   document.getElementById('oaSelectAll').addEventListener('change', e => {
     document.querySelectorAll('#oaApiList input[type=checkbox]').forEach(cb => { cb.checked = e.target.checked; });
@@ -135,7 +130,7 @@ const SCALAR_BASE_CONFIG = {
 function buildScalarHtml(libSrc, inputs, layout) {
   const config = inputs.content
     ? { ...SCALAR_BASE_CONFIG, content: inputs.content, layout }
-    : { ...SCALAR_BASE_CONFIG, url: inputs.url, layout, ...(document.getElementById('oaProxy').checked ? { proxyUrl: 'https://proxy.scalar.com' } : {}) };
+    : { ...SCALAR_BASE_CONFIG, url: inputs.url, layout };
   // JSON 內嵌進 <script>，把 < 轉義避免 </script> 提前斷開
   const configJson = JSON.stringify(config).replace(/</g, '\\u003c');
   return `<!doctype html>
@@ -237,12 +232,10 @@ async function parseSpec(text) {
   return jsyaml.load(text);
 }
 
-// 貼上的內容優先；否則抓網址（勾選 proxy 時走 Scalar CORS Proxy）
+// 貼上的內容優先；否則直接抓網址（不經第三方 proxy，對方伺服器需允許 CORS）
 async function fetchSpecText(inputs) {
   if (inputs.content) return inputs.content;
-  const useProxy = document.getElementById('oaProxy').checked;
-  const target = useProxy ? `https://proxy.scalar.com/?${new URLSearchParams({ scalar_url: inputs.url })}` : inputs.url;
-  const res = await fetch(target);
+  const res = await fetch(inputs.url);
   if (!res.ok) throw new Error(`讀取規格失敗：HTTP ${res.status}`);
   return res.text();
 }
